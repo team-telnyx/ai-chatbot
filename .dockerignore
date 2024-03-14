@@ -1,0 +1,7 @@
+app
+node_modules
+infra
+.dockerignore
+yarn-error.log
+/server/files
+.env
