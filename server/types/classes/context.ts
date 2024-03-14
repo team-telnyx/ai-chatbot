@@ -1,4 +1,4 @@
-import { TelnyxLoaderType } from '../../libs/services/documents/vectorstore/telnyx.js';
+import { TelnyxBucketChunk, TelnyxLoaderType } from '../../libs/services/documents/vectorstore/telnyx.js';
 import { Error } from '../common.js';
 import { DocumentType } from './loader.js';
 import { TelnyxSimilaritySearchLoaderMetadata } from './vectorstore.js';
@@ -9,7 +9,7 @@ export type Match = {
   url: string;
   title: string;
   description: string;
-  paragraphs: Paragraph[];
+  paragraphs: TelnyxBucketChunk[];
   total_tokens: number;
   override?: string;
   loader_type: TelnyxLoaderType;
@@ -57,12 +57,6 @@ export type PromptType = {
 export type MatchResponse = {
   matches: Match[];
   error: Error | null;
-};
-
-type Paragraph = {
-  tokens?: number;
-  heading: string;
-  content: string;
 };
 
 export type FormattedPrompt = {

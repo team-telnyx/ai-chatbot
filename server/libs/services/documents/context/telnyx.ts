@@ -12,6 +12,7 @@ import { DownstreamError } from './errors.js';
 import { TelnyxLoaderType } from '../vectorstore/telnyx.js';
 import { UnstructuredTextSplitter } from '../splitter/unstructured.js';
 import { JSONSplitter } from '../splitter/json.js';
+import { PDFSplitter } from '../splitter/pdf.js';
 
 type DocumentSplitter = {
   identifier: string;
@@ -100,10 +101,7 @@ export class TelnyxContext extends Context {
     if (matches.length === 0) return [];
 
     const documentPromises = matches.map((match) =>
-      this.matchToDocument(match).then((documentData) => ({
-        ...this.transformDocumentData(documentData, match),
-        match,
-      }))
+      this.matchToDocument(match).then((documentData) => ({ ...documentData.document, match }))
     );
 
     const results = await Promise.all(documentPromises);
@@ -132,12 +130,6 @@ export class TelnyxContext extends Context {
         certainty: item.match.certainty,
       },
     }));
-  }
-
-  // This function can be used to transform the documentData depending on the match data
-  private transformDocumentData(documentData, match) {
-    if (!match) return;
-    return documentData.document;
   }
 
   /**
@@ -179,31 +171,6 @@ export class TelnyxContext extends Context {
     };
   }
 
-  public async pdfToDocument(match: RawMatch): Promise<PromptType> {
-    const bucket = match.bucket_name;
-    const document_id = match.identifier;
-    const url = `/${bucket}/${encodeURIComponent(document_id)}`;
-    const pdfParser = new PDFParser();
-
-    const request = await this.client.get(url, { responseType: 'arraybuffer' });
-    const dataBuffer = Buffer.from(request.data);
-
-    const data = await new Promise((resolve, reject) => {
-      pdfParser.on('pdfParser_dataError', (errData) => reject(new Error(errData)));
-      pdfParser.on('pdfParser_dataReady', (pdfData) => {
-        const textContent = pdfData.Pages.map((page) =>
-          page.Texts.map((text) => decodeURIComponent(text.R.map((r) => r.T).join(' '))).join(' ')
-        ).join('\n');
-
-        resolve(textContent);
-      });
-
-      pdfParser.parseBuffer(dataBuffer);
-    });
-
-    return data;
-  }
-
   private formatAndSplit = async (match: RawMatch, document: any): Promise<DocumentSplitter> => {
     const document_id = match.identifier;
     const loader_type = match.loader_type;
@@ -242,8 +209,23 @@ export class TelnyxContext extends Context {
       };
     }
 
-    if (loader_type === TelnyxLoaderType.UnstructuredText || loader_type === TelnyxLoaderType.PDF) {
+    if (loader_type === TelnyxLoaderType.UnstructuredText) {
       const splitter = new UnstructuredTextSplitter({ file: document });
+      const paragraphs = splitter.split();
+
+      return {
+        identifier: document_id,
+        url: null,
+        title: null,
+        description: null,
+        body: document,
+        paragraphs: paragraphs,
+        total_tokens: paragraphs.reduce((total, paragraph) => total + paragraph.tokens, 0),
+      };
+    }
+
+    if (loader_type === TelnyxLoaderType.PDF) {
+      const splitter = new PDFSplitter({ file: document });
       const paragraphs = splitter.split();
 
       return {
@@ -308,6 +290,31 @@ export class TelnyxContext extends Context {
     }
 
     return output;
+  }
+
+  private async pdfToDocument(match: RawMatch): Promise<PromptType> {
+    const bucket = match.bucket_name;
+    const document_id = match.identifier;
+    const url = `/${bucket}/${encodeURIComponent(document_id)}`;
+    const pdfParser = new PDFParser();
+
+    const request = await this.client.get(url, { responseType: 'arraybuffer' });
+    const dataBuffer = Buffer.from(request.data);
+
+    const data = await new Promise((resolve, reject) => {
+      pdfParser.on('pdfParser_dataError', (errData) => reject(new Error(errData)));
+      pdfParser.on('pdfParser_dataReady', (pdfData) => {
+        const textContent = pdfData.Pages.map((page) =>
+          page.Texts.map((text) => decodeURIComponent(text.R.map((r) => r.T).join(' '))).join(' ')
+        ).join('\n');
+
+        resolve(textContent);
+      });
+
+      pdfParser.parseBuffer(dataBuffer);
+    });
+
+    return data;
   }
 
   /**
