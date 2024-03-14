@@ -1,7 +1,7 @@
-import { Paragraph } from '../../../../types/classes/loader';
+import { TelnyxBucketChunk } from '../vectorstore/telnyx';
 
 export abstract class Splitter {
-  paragraphs: Paragraph[];
+  paragraphs: TelnyxBucketChunk[];
 
   split() {
     throw new Error("Method 'split' must be implemented.");
