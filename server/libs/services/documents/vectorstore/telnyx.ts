@@ -47,8 +47,10 @@ export class Telnyx extends Vectorstore {
   }
 
   private processSearchResults(results: any[], searchQueries: any[], indexes: Indexes[]): any[] {
-    if (results.some((result) => result.status === 'rejected')) {
-      const error = results?.[0]?.reason?.response?.data?.errors?.[0];
+    const rejectedResult = results.find((result) => result.status === 'rejected');
+
+    if (rejectedResult) {
+      const error = rejectedResult?.reason?.response?.data?.errors?.[0];
 
       if (error?.code && error?.detail) throw new Error(`[${error?.code}] ${error?.detail}`);
       if (typeof error === 'string') throw new Error(error);
@@ -190,7 +192,7 @@ type TelnyxLoaderIntercomMetadata = {
 
 type TelnyxLoaderMetadata = TelnyxLoaderIntercomMetadata | null;
 
-export type TelnyxBucketParagraph = {
+export type TelnyxBucketChunk = {
   heading: string | null;
   content: string;
   tokens: number;
@@ -198,7 +200,7 @@ export type TelnyxBucketParagraph = {
 
 type TelnyxBucketMatch = {
   identifier: string;
-  paragraph: TelnyxBucketParagraph;
+  paragraph: TelnyxBucketChunk;
   bucket_name: string;
   certainty: number;
   type: DocumentType.telnyx;

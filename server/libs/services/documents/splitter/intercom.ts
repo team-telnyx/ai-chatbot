@@ -76,16 +76,30 @@ export class IntercomSplitter extends Splitter {
     try {
       const { body, url } = this.article;
 
+      // Remove tab characters
       const tabs_removed = body.replaceAll('\t', '');
+
+      // Decode HTML entities
       const html_entities_removed = decode(tabs_removed);
+
+      // Convert HTML tables to Markdown tables
       const convert_tables = this.convertTables(html_entities_removed, url);
+
+      // Remove headers if they are empty
       const remove_empty_headers = this.removeEmptyHeaders(convert_tables);
+
+      // Convert image tags to Markdown image syntax
       const convert_images = this.convertImages(remove_empty_headers);
+
+      // Convert hyperlinks to Markdown link syntax
       const convert_links = this.convertLinks(convert_images, url);
+
+      // Convert video embeds to Markdown or a suitable format
       const convert_videos = this.convertVideos(convert_links);
 
       return convert_videos;
     } catch (e) {
+      // Return original body or an empty string if an error occurs
       return this.body || '';
     }
   };
