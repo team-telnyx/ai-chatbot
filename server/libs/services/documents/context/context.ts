@@ -1,9 +1,10 @@
-import { encode } from 'gpt-3-encoder';
 import { FormattedPrompt, Indexes, Match, PromptType, RawMatch } from '../../../../types/classes/context.js';
 import { CallbackEvent } from '../../../../types/common.js';
 import { Vectorstore } from '../vectorstore/vectorstore.js';
 import { DownstreamError } from './errors.js';
-import { TelnyxLoaderType } from '../vectorstore/telnyx.js';
+import { TelnyxBucketChunk, TelnyxLoaderType } from '../vectorstore/telnyx.js';
+
+import stringSimilarity from 'string-similarity';
 
 // represents how close the token size can be to the max token size
 const SAFE_TOKENS = 100;
@@ -13,6 +14,7 @@ export abstract class Context {
   callback: (event: CallbackEvent) => void;
   MAX_DOCUMENT_TOKENS: number;
   MIN_CERTAINTY: number;
+  MINIMUM_CONTENT_LENGTH: number;
 
   constructor({ vectorstore }) {
     this.vectorstore = vectorstore;
@@ -22,6 +24,8 @@ export abstract class Context {
 
     // the minimum certainty required for a match to be considered
     this.MIN_CERTAINTY = 0.9;
+
+    this.MINIMUM_CONTENT_LENGTH = 10;
   }
 
   public abstract describe(matches: Match[]): Promise<PromptType>;
@@ -125,27 +129,10 @@ export abstract class Context {
 
     const loaderTypesWithoutHeaders = [TelnyxLoaderType.UnstructuredText];
     const isUnstructuredText = loaderTypesWithoutHeaders.includes(match.loader_type);
-    const isPDF = match.loader_type === TelnyxLoaderType.PDF;
 
     if (isUnstructuredText) {
       const { paragraphs } = match;
       return paragraphs.map((paragraph) => paragraph.content).join('');
-    }
-
-    if (isPDF) {
-      const { paragraphs } = match;
-      let output = ``;
-
-      for (const paragraph of paragraphs) {
-        output += `${paragraph.content}`;
-      }
-
-      return `\n\n# ${
-        match.identifier
-      }\nThis file is being represented as unstructured text. It has no description.\n\n${output.replaceAll(
-        '\n',
-        '\n\n'
-      )}`;
     }
 
     const { url, title, description, paragraphs } = match;
@@ -153,7 +140,7 @@ export abstract class Context {
     let output =
       title && url && description
         ? `# ${title} ([link](${url}))\n${description}\n\n`
-        : `# ${match.identifier}\nThis file is being represented as unstructured text. It has no description.\n\n`;
+        : `# ${match.identifier}\nThis file is being represented as unstructured text. It has no title, description or URL defined.\n\n`;
 
     for (const paragraph of paragraphs) {
       if (paragraph.heading) output += `### ${paragraph.heading}\n${paragraph.content}\n\n`;
@@ -168,8 +155,6 @@ export abstract class Context {
    * @param matches The top matches
    * @param max_tokens The maximum token size of the prompt
    * @returns The markdown equivalent of all matches that fit within the prompt size
-   *
-   * @TODO update this function to also try to determine which paragraph is the match and split around it
    */
 
   public trimMatches(matches: Match[], max_tokens: number): FormattedPrompt {
@@ -177,70 +162,87 @@ export abstract class Context {
     let totalTokens = 0;
     let context = '';
 
-    for (const match of matches) {
-      const nextTotal = totalTokens + match.total_tokens;
+    const MAX_SAFE_TOKENS = max_tokens - SAFE_TOKENS;
 
-      if (nextTotal <= max_tokens) {
-        // Add matches in their entirety as long as they fit
-        formattedMatches.push({ title: match.title, url: match.url, tokens: match.total_tokens });
+    // Ensure matches are sorted by certainty in descending order
+    matches.sort((a, b) => b.matched.certainty - a.matched.certainty);
+
+    for (const match of matches) {
+      const matchTotalTokens = match.paragraphs.reduce((acc, curr) => acc + (curr.tokens || 0), 0);
+
+      if (totalTokens + matchTotalTokens <= MAX_SAFE_TOKENS) {
+        // If the entire document can fit, add it in its entirety.
+        formattedMatches.push({ title: match.title, url: match.url, tokens: matchTotalTokens });
         context += this.format(match);
-        totalTokens = nextTotal;
+        totalTokens += matchTotalTokens;
       } else {
-        // If this match can't fit in its entirety but we haven't used up all space, try to split it
-        const remainingTokens = max_tokens - totalTokens;
-        if (remainingTokens > 0 && formattedMatches.length > 0) {
-          const { paragraphs, tokens_used } = this.split(match, remainingTokens);
-          if (tokens_used > 0) {
-            // Ensure split is beneficial
-            formattedMatches.push({
-              title: match.title,
-              url: match.url,
-              tokens: `${tokens_used} / ${match.total_tokens}`,
-            });
-            context += this.format({ ...match, paragraphs });
-            totalTokens += tokens_used;
-          }
+        const remainingTokens = MAX_SAFE_TOKENS - totalTokens;
+        const startingParagraphIndex = this.findStartingParagraph(match, match.matched.content);
+        const paragraphsToInclude = this.shortenDocument(
+          match.paragraphs,
+          startingParagraphIndex ?? 0,
+          remainingTokens
+        );
+
+        const tokens_used = paragraphsToInclude.reduce((acc, curr) => acc + (curr.tokens || 0), 0);
+        if (tokens_used > 0 && tokens_used <= remainingTokens) {
+          formattedMatches.push({
+            title: match.title,
+            url: match.url,
+            tokens: `${tokens_used} / ${matchTotalTokens}`,
+          });
+
+          context += this.format({ ...match, paragraphs: paragraphsToInclude });
+          totalTokens += tokens_used;
         }
+
+        // Since we're adding documents until we reach MAX_SAFE_TOKENS, break after the split attempt
         break;
       }
-    }
 
-    if (formattedMatches.length === 0 && matches.length > 0) {
-      const match = matches[0];
-      const { paragraphs, tokens_used } = this.split(match, max_tokens);
-      const used = [{ title: match.title, url: match.url, tokens: `${tokens_used} / ${match.total_tokens}` }];
-      return { context: this.format({ ...match, paragraphs }), used };
+      // If we've reached or exceeded MAX_SAFE_TOKENS, stop processing further documents
+      if (totalTokens >= MAX_SAFE_TOKENS) break;
     }
 
     return { context, used: formattedMatches };
   }
 
   /**
-   * If a documents paragraphs exceed the token size, remove paragraphs until it doesnt
-   * We remove the paragraphs that are the further neighbours to the matched paragraph
-   * @param match The matched paragraph of the document
-   * @param max_tokens The max tokens that the document can be
-   * @returns A list of paragraphs that fit within the token size
+   * Used to determine which paragraph in a document was matched by similarity search
+   * Because the similarity search splits dont match our own splits, this function is used to determine the correct paragraph
+   * Once the correct paragraph has been determined, we can split the entire document around that paragraph
+   * @param match The match of the document that was found
+   * @param originalContent The text content that was matched
+   * @param isHeader A boolean representing whether we are checking the header or the content of the match
+   * @returns The index of the paragraph that was matched
+   *
+   * @TODO Use a different method for finding the start paragraph of CSV or JSON content
    */
 
-  private split(match: Match, max_tokens: number) {
-    // We remove a specified number of tokens to allow for any unexpected overflow
-    const MAX_TOKENS_SAFE = max_tokens - SAFE_TOKENS;
-    const index = match.paragraphs.findIndex((paragraph) => paragraph.content === match.matched.content);
+  private findStartingParagraph(match: Match, originalContent: string, isHeader = false): number | null {
+    if (!originalContent || typeof originalContent !== 'string') return null;
 
-    const { title, description, url, paragraphs, matched } = match;
+    if (originalContent.trim().length < this.MINIMUM_CONTENT_LENGTH) {
+      if (!isHeader) {
+        return this.findStartingParagraph(match, match.matched.heading, true);
+      }
+      return null;
+    }
 
-    const heading = `# Metadata\n* Title: ${title}\n* Description: ${description}\n* URL: ${url}\n\n`;
-    const heading_tokens = encode(heading)?.length;
+    let bestMatchIndex = -1;
+    let highestScore = 0;
 
-    // max safe tokens - the tokens for the heading - the tokens for the matched paragraph
-    const matched_paragraph_tokens = encode(`${matched.heading}\n${matched.content}\n\n`).length;
-    const remaining_tokens = MAX_TOKENS_SAFE - heading_tokens - matched_paragraph_tokens;
+    match.paragraphs.forEach((paragraph, index) => {
+      const textToCompare = isHeader ? paragraph.heading : paragraph.content;
+      const similarityScore = stringSimilarity.compareTwoStrings(originalContent, textToCompare);
 
-    const shortened_articles = this.shortenDocument(paragraphs, index, remaining_tokens);
-    const tokens_used = shortened_articles.map((item) => item.tokens).reduce((a, b) => a + b, 0);
+      if (similarityScore > highestScore) {
+        highestScore = similarityScore;
+        bestMatchIndex = index;
+      }
+    });
 
-    return { paragraphs: shortened_articles, tokens_used: tokens_used };
+    return bestMatchIndex;
   }
 
   /**
@@ -252,39 +254,46 @@ export abstract class Context {
    * @returns The paragraphs that fit within the token size
    */
 
-  private shortenDocument(input, start_index, max_tokens) {
-    const down_options = input.slice(0, start_index).length;
-    const up_options = input.slice(start_index + 1, input.length).length;
+  private shortenDocument(input: TelnyxBucketChunk[], start_index: number, max_tokens: number): TelnyxBucketChunk[] {
+    let remaining_tokens = max_tokens - (input[start_index].tokens || 0); // Deduct tokens of the start_index paragraph
+    const output = [input[start_index]]; // Start with the paragraph at start_index
 
-    let down_index = 0;
-    let up_index = 0;
-    let remaining_tokens = max_tokens;
+    let down_index = start_index - 1; // Initialize down_index to the paragraph before start_index
+    let up_index = start_index + 1; // Initialize up_index to the paragraph after start_index
 
-    let output = [input[start_index]];
+    // While there are paragraphs above or below the starting index and tokens remain
+    while ((down_index >= 0 || up_index < input.length) && remaining_tokens > 0) {
+      let added = false; // Flag to check if we added a paragraph in this iteration
 
-    while (down_index < down_options || up_index < up_options) {
-      if (up_index >= down_index || up_index === up_options) {
-        const add = input[start_index - 1 - down_index];
-        if (add && add.tokens <= remaining_tokens) {
-          output = [...output, add];
-          remaining_tokens -= add.tokens;
+      // Try to add paragraph from above if we have not exceeded the index and have enough tokens
+      if (down_index >= 0) {
+        const tokens = input[down_index].tokens || 0;
+        if (tokens <= remaining_tokens) {
+          output.unshift(input[down_index]); // Add to the beginning
+          remaining_tokens -= tokens;
+          down_index--; // Move to the next paragraph above
+          added = true;
         }
-
-        down_index += 1;
       }
 
-      if (down_index > up_index || down_index === 0) {
-        const add = input[start_index + 1 + up_index];
-        if (add && add.tokens <= remaining_tokens) {
-          output = [add, ...output];
-          remaining_tokens -= add.tokens;
+      // Try to add paragraph from below if we have not exceeded the index and have enough tokens
+      if (up_index < input.length && remaining_tokens > 0) {
+        const tokens = input[up_index].tokens || 0;
+        if (tokens <= remaining_tokens) {
+          output.push(input[up_index]); // Add to the end
+          remaining_tokens -= tokens;
+          up_index++; // Move to the next paragraph below
+          added = true;
         }
+      }
 
-        up_index += 1;
+      // If we didn't add any paragraphs in this iteration, break the loop to prevent infinite looping
+      if (!added) {
+        break;
       }
     }
 
-    return output.reverse().filter((item) => item);
+    return output;
   }
 
   /**
