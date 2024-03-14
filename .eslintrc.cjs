@@ -1,0 +1,73 @@
+module.exports = {
+  env: {
+    browser: true,
+    es2021: true,
+  },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+  },
+  globals: {
+    LOCAL: 'readonly',
+    LOCAL_USERNAME: 'readonly',
+    LOCAL_NAME: 'readonly',
+  },
+  extends: [
+    'plugin:react/recommended',
+    'plugin:react-hooks/recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:import/errors',
+    'plugin:import/warnings',
+    'plugin:import/typescript',
+    'plugin:jsx-a11y/recommended',
+    'prettier',
+    'plugin:prettier/recommended',
+  ],
+  rules: {
+    indent: 0,
+    camelcase: 0,
+    'no-unused-vars': 0,
+    'arrow-body-style': 0,
+    'import/extensions': 0,
+    'react/prop-types': 0,
+    'react/jsx-uses-react': 0,
+    'react/react-in-jsx-scope': 0,
+    'react-hooks/exhaustive-deps': 0,
+    'import/prefer-default-export': 0,
+    'import/no-dynamic-require': 0,
+    'import/no-extraneous-dependencies': 0,
+    '@typescript-eslint/indent': 0,
+    '@typescript-eslint/no-var-requires': 0,
+    '@typescript-eslint/no-unused-vars': ['error'],
+    '@typescript-eslint/explicit-module-boundary-types': 0,
+  },
+  settings: {
+    react: {
+      version: 'detect',
+    },
+    'import/core-modules': ['module-alias'],
+    'import/resolver': {
+      typescript: {
+        alwaysTryTypes: true,
+        project: './server/',
+      },
+      'babel-module': {
+        root: ['./src'],
+        cwd: '.',
+        sourceType: 'module',
+        extensions: ['.ts', '.tsx', '.js', '.jsx'],
+        alias: {
+          '@svg': './src/assets/svg',
+          '@pdf': './src/assets/pdf',
+          '@img': './src/assets/img',
+          '@api': './src/requests',
+          '@common': './src/common',
+          '@store': './src/store',
+          '@components': './src/components',
+          '@requests': './src/requests',
+        },
+      },
+    },
+  },
+};

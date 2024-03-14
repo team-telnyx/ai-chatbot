@@ -1,0 +1,8 @@
+/app
+node_modules
+
+yarn-error.log
+
+/server/files
+
+.env

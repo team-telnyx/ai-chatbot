@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "rootDir": "./",
+    "outDir": "../app",
+    "module": "ESNext",
+    "esModuleInterop": true,
+    "target": "ES2022",
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+  },
+}
