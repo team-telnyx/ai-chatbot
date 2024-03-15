@@ -14,4 +14,7 @@ COPY . ./
 # compile backend ts into js
 RUN yarn run build:backend
 
+# make the entrypoint script executable
+RUN chmod +x entrypoint.sh
+
 ENTRYPOINT ["./entrypoint.sh"]
