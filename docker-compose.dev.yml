@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 
 services:
   postgres:
@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - '${POSTGRES_PORT}:${POSTGRES_PORT}'
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./schema.sql:/docker-entrypoint-initdb.d/dump.sql:ro
@@ -24,10 +24,12 @@ services:
     container_name: api
     image: ai_chatbot_api
     restart: always
+    environment:
+      POSTGRES_HOST: postgres
     env_file:
       - .env
     ports:
-      - "${API_PORT}:${API_PORT}"
+      - '${API_PORT}:${API_PORT}'
     depends_on:
       - postgres
     networks:
@@ -38,7 +40,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${NGINX_PORT}:${NGINX_PORT}"
+      - '${NGINX_PORT}:${NGINX_PORT}'
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/templates:/etc/nginx/templates
