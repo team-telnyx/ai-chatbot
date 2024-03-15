@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     ports:
-      - '${POSTGRES_PORT}:${POSTGRES_PORT}'
+      - '5433:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./schema.sql:/docker-entrypoint-initdb.d/dump.sql:ro
