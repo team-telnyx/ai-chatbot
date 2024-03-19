@@ -151,7 +151,7 @@ export abstract class Context {
   }
 
   /**
-   * Out of the top 3 matches, determines which matches fit in the prompt size and returns the markdown string
+   * Out of the top matches, determines which matches fit in the prompt size and returns the markdown string
    * @param matches The top matches
    * @param max_tokens The maximum token size of the prompt
    * @returns The markdown equivalent of all matches that fit within the prompt size
@@ -303,7 +303,7 @@ export abstract class Context {
    */
 
   private async enrich(raw_matches: RawMatch[], min_certainty: number): Promise<Match[]> {
-    const matches = raw_matches.filter((match) => match.certainty > min_certainty);
+    const matches = raw_matches.filter((match) => match.chunk.certainty > min_certainty);
     if (matches.length === 0) return [];
 
     const documents = await this.matchesToDocuments(matches);

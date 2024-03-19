@@ -3,42 +3,34 @@ import { Error } from '../common.js';
 import { DocumentType } from './loader.js';
 import { TelnyxSimilaritySearchLoaderMetadata } from './vectorstore.js';
 
+export type RawMatch = {
+  identifier: string;
+  url?: string;
+  chunk: TelnyxSimilarityResult;
+  loader_type: TelnyxLoaderType;
+  loader_metadata?: TelnyxSimilaritySearchLoaderMetadata;
+  type: string;
+};
+
 export type Match = {
   identifier: string;
   type: DocumentType;
   url: string;
   title: string;
   description: string;
-  paragraphs: TelnyxBucketChunk[];
   total_tokens: number;
   override?: string;
+  paragraphs: TelnyxBucketChunk[];
   loader_type: TelnyxLoaderType;
-  matched: {
-    heading: string;
-    content: string;
-    bucket?: string;
-    index?: string;
-    certainty: number;
-  };
-  bucket_name?: string;
-  document?: any;
-  metadata?: {
-    describe?: string;
-  };
+  matched: TelnyxSimilarityResult;
 };
 
-export type RawMatch = {
-  identifier: string;
-  url: string;
-  paragraph: {
-    heading: string;
-    content: string;
-  };
-  bucket_name?: string;
-  loader_type: TelnyxLoaderType;
-  loader_metadata?: TelnyxSimilaritySearchLoaderMetadata;
+type TelnyxSimilarityResult = {
+  heading: string | null;
+  content: string;
+  bucket: string;
   certainty: number;
-  type: string;
+  tokens: number;
 };
 
 export type UsedDocuments = {

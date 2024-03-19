@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Indexes } from '../../../../types/classes/context';
+import { Indexes, RawMatch } from '../../../../types/classes/context';
 import { DocumentType } from '../../../../types/classes/loader.js';
 import { Vectorstore } from './vectorstore.js';
 import { telnyx } from '../../../../clients/telnyx.js';
@@ -81,23 +81,20 @@ export class Telnyx extends Vectorstore {
       .filter((v, i, a) => a.findIndex((v2) => v2.identifier === v.identifier) === i);
   }
 
-  private formatMatch(match: TelnyxSimilaritySearchResponse, bucket_name: string): TelnyxBucketMatch {
-    // console.log('match', match);
-    // console.log('bucket_name', bucket_name);
-
+  private formatMatch(match: TelnyxSimilaritySearchResponse, bucket_name: string): RawMatch {
     const filename = match.metadata.filename;
     const content = match.document_chunk;
     const loader_metadata = match.metadata.loader_metadata;
 
     const defaultFormat = {
       identifier: filename,
-      paragraph: {
+      chunk: {
         heading: null,
         content: content,
         tokens: encode(content).length,
+        bucket: bucket_name,
+        certainty: match.metadata.certainty,
       },
-      bucket_name,
-      certainty: match.metadata.certainty,
       type: DocumentType.telnyx,
       loader_metadata,
       loader_type: TelnyxLoaderType.UnstructuredText,
@@ -106,13 +103,15 @@ export class Telnyx extends Vectorstore {
     // If the match is using the Intercom Loader
     if (this.isIntercomMatch(loader_metadata)) {
       const heading = loader_metadata.heading.replaceAll('\n', '').trim();
-      const paragraph = {
+      const chunk = {
         heading,
         content: content.replace(heading, ''),
         tokens: encode(content.replace(heading, '')).length,
+        bucket: bucket_name,
+        certainty: match.metadata.certainty,
       };
 
-      return { ...defaultFormat, paragraph, loader_metadata, loader_type: TelnyxLoaderType.Intercom };
+      return { ...defaultFormat, chunk, loader_metadata, loader_type: TelnyxLoaderType.Intercom };
     }
 
     if (this.isCSVMatch(filename)) {
@@ -196,14 +195,4 @@ export type TelnyxBucketChunk = {
   heading: string | null;
   content: string;
   tokens: number;
-};
-
-type TelnyxBucketMatch = {
-  identifier: string;
-  paragraph: TelnyxBucketChunk;
-  bucket_name: string;
-  certainty: number;
-  type: DocumentType.telnyx;
-  loader_type: TelnyxLoaderType;
-  loader_metadata: TelnyxLoaderMetadata;
 };
