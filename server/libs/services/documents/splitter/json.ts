@@ -84,7 +84,7 @@ export class JSONSplitter extends Splitter {
    * @returns The JSON representation of the CSV input
    */
 
-  private async csvToJson(): Promise<any> {
+  public async csvToJson(): Promise<any> {
     const csvAsJson = await new Promise((resolve) => {
       csvToJsonV2({ output: 'json' })
         .fromString(this.file)

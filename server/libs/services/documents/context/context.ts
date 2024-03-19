@@ -1,6 +1,7 @@
 import { CallbackEvent } from '../../types.js';
 import { Vectorstore } from '../vectorstore/vectorstore.js';
 import { compareTwoStrings } from 'string-similarity';
+import { DownstreamError } from './errors.js';
 import {
   FormattedPrompt,
   Indexes,
@@ -8,7 +9,6 @@ import {
   RawMatch,
   TelnyxBucketChunk,
   TelnyxContextResult,
-  TelnyxLoaderType,
 } from '../types.js';
 
 export abstract class Context {
@@ -23,7 +23,7 @@ export abstract class Context {
     this.vectorstore = vectorstore;
 
     // the default total token size that all documents must fit within
-    this.MAX_DOCUMENT_TOKENS = 2000;
+    this.MAX_DOCUMENT_TOKENS = 3000;
     // the minimum certainty required for a match to be considered
     this.MIN_CERTAINTY = 0.9;
     // the minumum length of content that is considered valid for splitting
@@ -32,7 +32,6 @@ export abstract class Context {
     this.SAFE_TOKENS = 100;
   }
 
-  public abstract prompt(matches: TelnyxDocument[], max_tokens?: number): Promise<TelnyxContextResult>;
   public abstract describe(matches: TelnyxDocument[]): Promise<TelnyxContextResult>;
   public abstract raw_matches(query: string, indexes: Indexes[], max_results?: number): Promise<RawMatch[]>;
   public abstract matchesToDocuments(matches: RawMatch[]): Promise<TelnyxDocument[]>;
@@ -44,30 +43,54 @@ export abstract class Context {
   ): Promise<TelnyxDocument[]>;
 
   /**
+   * Converts an array of matches into a stringified prompt for the language model
+   * @param matches An array of vectorstore matches
+   * @param max_tokens Prevents the returned string from exceeding the token limit set
+   * @returns A string of documents, readable by the LLM
+   * @throws DownstreamError
+   */
+
+  public async prompt(matches: TelnyxDocument[], max_tokens = this.MAX_DOCUMENT_TOKENS): Promise<TelnyxContextResult> {
+    if (matches.length === 0) return { context: '', used: [] };
+
+    try {
+      const start = performance.now();
+
+      const { context, used } = this.trimMatches(matches, max_tokens);
+      const end = performance.now();
+
+      if (this.callback) {
+        this.callback({ type: 'timer', value: { name: 'Generating Prompt', duration: (end - start) / 1000 } });
+        this.callback({ type: 'documents', value: used });
+      }
+
+      return { context, used };
+    } catch (e) {
+      const detail = 'Failed to generate the context.';
+      const message = e?.message;
+
+      const msg = DownstreamError(detail, message);
+      throw new Error(JSON.stringify(msg));
+    }
+  }
+
+  /**
    * Convert a list of chunks to a markdown string
    * @param match The document that contains the chunks
    * @returns The markdown string
    */
 
-  public format(match: TelnyxDocument): string {
+  public format(match: TelnyxDocument, usedTokens = ''): string {
     if (match?.override) {
       return match?.override;
-    }
-
-    const loaderTypesWithoutHeaders = [TelnyxLoaderType.UnstructuredText];
-    const isUnstructuredText = loaderTypesWithoutHeaders.includes(match.loader_type);
-
-    if (isUnstructuredText) {
-      const { chunks } = match;
-      return chunks.map((chunk) => chunk.content).join('');
     }
 
     const { url, title, description, chunks } = match;
 
     let output =
       title && url && description
-        ? `# ${title} ([link](${url}))\n${description}\n\n`
-        : `# ${match.identifier}\nThis file is being represented as unstructured text. It has no title, description or URL defined.\n\n`;
+        ? `# ${title}${usedTokens} ([link](${url}))\n${description}\n\n`
+        : `# ${match.identifier}${usedTokens}\nThis file is being represented as unstructured text. It has no title, description or URL defined.\n\n`;
 
     for (const chunk of chunks) {
       if (chunk.heading) output += `### ${chunk.heading}\n${chunk.content}\n\n`;
@@ -107,8 +130,8 @@ export abstract class Context {
         const remainingTokens = MAX_SAFE_TOKENS - totalTokens;
         const startingChunkIndex = this.findStartingChunk(match, match.matched.chunk.content);
         const chunksToInclude = this.shortenDocument(match.chunks, startingChunkIndex ?? 0, remainingTokens);
-
         const tokens_used = chunksToInclude.reduce((acc, curr) => acc + (curr.tokens || 0), 0);
+
         if (tokens_used > 0 && tokens_used <= remainingTokens) {
           formattedMatches.push({
             title: match.title,
@@ -116,7 +139,8 @@ export abstract class Context {
             tokens: `${tokens_used} / ${matchTotalTokens}`,
           });
 
-          context += this.format({ ...match, chunks: chunksToInclude });
+          const tokens_used_string = ` (${tokens_used} used of ${matchTotalTokens} tokens in file)`;
+          context += this.format({ ...match, chunks: chunksToInclude }, tokens_used_string);
           totalTokens += tokens_used;
         }
 

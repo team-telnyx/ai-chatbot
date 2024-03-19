@@ -5,7 +5,6 @@ import { Context } from './context.js';
 import { MarkdownSplitter } from '../splitter/markdown.js';
 import { IntercomSplitter } from '../splitter/intercom.js';
 import { us_central_1 } from '../../../../clients/telnyx.js';
-import { DownstreamError } from './errors.js';
 import { UnstructuredTextSplitter } from '../splitter/unstructured.js';
 import { JSONSplitter } from '../splitter/json.js';
 import { PDFSplitter } from '../splitter/pdf.js';
@@ -27,38 +26,6 @@ export class TelnyxContext extends Context {
   constructor({ vectorstore }) {
     super({ vectorstore });
     this.client = us_central_1;
-  }
-
-  /**
-   * Converts an array of matches into a stringified prompt for the language model
-   * @param matches An array of vectorstore matches
-   * @param max_tokens Prevents the returned string from exceeding the token limit set
-   * @returns A string of documents, readable by the LLM
-   * @throws DownstreamError
-   */
-
-  public async prompt(matches: TelnyxDocument[], max_tokens = this.MAX_DOCUMENT_TOKENS): Promise<TelnyxContextResult> {
-    if (matches.length === 0) return { context: '', used: [] };
-
-    try {
-      const start = performance.now();
-
-      const { context, used } = this.trimMatches(matches, max_tokens);
-      const end = performance.now();
-
-      if (this.callback) {
-        this.callback({ type: 'timer', value: { name: 'Generating Prompt', duration: (end - start) / 1000 } });
-        this.callback({ type: 'documents', value: used });
-      }
-
-      return { context, used };
-    } catch (e) {
-      const detail = 'Failed to generate the context.';
-      const message = e?.message;
-
-      const msg = DownstreamError(detail, message);
-      throw new Error(JSON.stringify(msg));
-    }
   }
 
   /**
@@ -182,6 +149,7 @@ export class TelnyxContext extends Context {
     const document = await this.getChunkedDocument(match, data);
 
     return {
+      body: document.body,
       identifier: document.identifier,
       type: DocumentType.telnyx,
       url: document.url || match.url || null,
@@ -233,11 +201,39 @@ export class TelnyxContext extends Context {
     if (title) metadata.push(`- Title: ${title}`);
     if (description) metadata.push(`- Description: ${description.replaceAll('\n', ' ')}`);
     if (url) metadata.push(`- URL: ${url}`);
-    if (chunks.length) {
+
+    if (this.isJsonArray(match.body) || Array.isArray(match.body)) {
+      return [...metadata, `- JSON Keys: [${Object.keys(match?.body?.[0])}]`].join('\n');
+    }
+
+    // If the chunks have headings, add the first 30 headings
+    if (chunks.length && !chunks.every((chunk) => chunk.heading === null)) {
       metadata.push(
-        `- Paragraph Headings: [${chunks
+        `- Chunk Headings: [${chunks
           .map((para) => `"${para.heading}"`)
-          .slice(0, 20)
+          .filter((chunk) => chunk.trim().length > 0)
+          .slice(0, 30)
+          .join(', ')}]`
+      );
+    }
+
+    // If the chunks dont have headings and there is more than 30, add the first 30 chunks with the first 50 characters of each
+    if (chunks.length && chunks.every((chunk) => chunk.heading === null) && chunks.length > 30) {
+      metadata.push(
+        `- Start Of Chunks: [${chunks
+          .map((para) => `"${para.content.slice(0, 50)}"`)
+          .filter((chunk) => chunk.trim().length > 0)
+          .slice(0, 30)
+          .join(', ')}]`
+      );
+    }
+
+    // If the chunks dont have headings and there is less than 30, add the first 30 chunks with the first 600 characters of each
+    if (chunks.length && chunks.every((chunk) => chunk.heading === null) && chunks.length <= 30) {
+      metadata.push(
+        `- Start Of Chunks: [${chunks
+          .map((para) => `"${para.content.slice(0, 600)}"`)
+          .filter((chunk) => chunk.trim().length > 0)
           .join(', ')}]`
       );
     }
@@ -289,6 +285,7 @@ export class TelnyxContext extends Context {
     let splitter = undefined;
     let splitParams = undefined;
     let additionalProps = {};
+    let telnyxDocumentData = document;
 
     switch (loader_type) {
       case TelnyxLoaderType.Markdown:
@@ -316,6 +313,7 @@ export class TelnyxContext extends Context {
         break;
       case TelnyxLoaderType.CSV:
         splitter = new JSONSplitter({ file: document });
+        telnyxDocumentData = await splitter.csvToJson();
         splitParams = true;
         break;
       default:
@@ -338,7 +336,7 @@ export class TelnyxContext extends Context {
       url: null,
       title: null,
       description: null,
-      body: document,
+      body: telnyxDocumentData,
       chunks: chunks,
       total_tokens: total_tokens,
       ...additionalProps,
@@ -380,6 +378,19 @@ export class TelnyxContext extends Context {
         keywords: 'No Keywords',
         body,
       };
+    }
+  };
+
+  private isJsonArray = (input: string) => {
+    try {
+      const result = JSON.parse(input);
+      return Array.isArray(result);
+    } catch (e) {
+      try {
+        return Array.isArray(input && Object.keys(input).length > 0);
+      } catch (err) {
+        return false;
+      }
     }
   };
 }
