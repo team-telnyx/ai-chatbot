@@ -6,6 +6,7 @@ export type TelnyxDocument = {
   description: string;
   chunks: TelnyxBucketChunk[];
   total_tokens: number;
+  body: any;
   override?: string;
   loader_type: TelnyxLoaderType;
   matched: RawMatch;
