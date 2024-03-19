@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-npm run server
+yarn run server
