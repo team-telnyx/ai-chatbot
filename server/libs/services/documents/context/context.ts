@@ -2,6 +2,7 @@ import { CallbackEvent } from '../../types.js';
 import { Vectorstore } from '../vectorstore/vectorstore.js';
 import { compareTwoStrings } from 'string-similarity';
 import { DownstreamError } from './errors.js';
+
 import {
   FormattedPrompt,
   Indexes,
