@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ChatCompletionMessageParam } from 'openai/resources';
-import { Document, ToolCompletion } from '../agents';
 import { Error } from '../common';
 
 export type OpenAIRequestConfiguration = {
@@ -82,6 +81,25 @@ export type OpenAIMetadata = {
   show_feedback?: boolean;
   error?: Error | null;
   result: string;
+};
+
+type ToolCompletion = {
+  id: string;
+  message_id: string;
+  system: string;
+  tool_name: string;
+  tool_arguments: string;
+  tool_output: string;
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  duration: number;
+};
+
+type Document = {
+  url: string;
+  message_id: string;
+  type: string;
 };
 
 export type DatabaseMessage = {

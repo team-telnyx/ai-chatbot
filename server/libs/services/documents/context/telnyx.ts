@@ -123,12 +123,7 @@ export class TelnyxContext extends Context {
       total_tokens: item.total_tokens,
       override: item.override,
       loader_type: item.match.loader_type,
-      matched: {
-        bucket: item.match.bucket_name,
-        heading: item.match.paragraph.heading,
-        content: item.match.paragraph.content,
-        certainty: item.match.certainty,
-      },
+      matched: item.match,
     }));
   }
 
@@ -139,7 +134,7 @@ export class TelnyxContext extends Context {
    */
 
   public async matchToDocument(match: RawMatch): Promise<PromptType> {
-    const bucket = match.bucket_name;
+    const bucket = match.chunk.bucket;
     const document_id = match.identifier;
 
     const url = `/${bucket}/${encodeURIComponent(document_id)}`;
@@ -293,7 +288,7 @@ export class TelnyxContext extends Context {
   }
 
   private async pdfToDocument(match: RawMatch): Promise<PromptType> {
-    const bucket = match.bucket_name;
+    const bucket = match.chunk.bucket;
     const document_id = match.identifier;
     const url = `/${bucket}/${encodeURIComponent(document_id)}`;
     const pdfParser = new PDFParser();
