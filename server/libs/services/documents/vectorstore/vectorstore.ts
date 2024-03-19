@@ -1,4 +1,4 @@
-import { Indexes } from '../../../../types/classes/context';
+import { Indexes } from '../types.js';
 
 export abstract class Vectorstore {
   default_indexes: Indexes[];

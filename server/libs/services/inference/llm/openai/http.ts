@@ -4,16 +4,10 @@ import {
   ChatCompletionToolChoiceOption,
 } from 'openai/resources/index.js';
 
-import {
-  OpenAIModel,
-  OpenAIRequest,
-  OpenAIRequestConfiguration,
-  OpenAIResponse,
-} from '../../../../../types/classes/openai.js';
-
 import { OpenAI } from './openai.js';
 import { APIError } from 'openai';
 import { Threads } from '../../../../repositories/postgres/threads.postgres.js';
+import { OpenAIModel, OpenAIRequest, OpenAIRequestConfiguration, OpenAIResponse } from '../../types.js';
 
 type TelnyxChatCompletionCreateParamsNonStreaming = ChatCompletionCreateParamsNonStreaming & { openai_api_key: string };
 

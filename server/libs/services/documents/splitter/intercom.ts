@@ -1,9 +1,8 @@
 import { decode } from 'html-entities';
 import { convert } from 'html-to-text';
 import { encode } from 'gpt-3-encoder';
-import { IntercomResource } from '../../../../types/classes/intercom';
 import { Splitter } from './splitter.js';
-import { Paragraph } from '../../../../types/classes/loader';
+import { IntercomResource, TelnyxBucketChunk } from '../types';
 
 // Regex Patterns
 const i_tags = /<\/i>/g;
@@ -36,22 +35,22 @@ export class IntercomSplitter extends Splitter {
     this.article = article;
     this.title = article.title;
     this.body = article.body;
-    this.paragraphs = this.split();
+    this.chunks = this.split();
   }
 
   /**
-   * Splits an Intercom document into paragraphs.
-   * @returns A list of paragraphs created from the document
+   * Splits an Intercom document into chunks.
+   * @returns A list of chunks created from the document
    */
 
-  split = (): Paragraph[] => {
+  split = (): TelnyxBucketChunk[] => {
     const input = this.intercomToMarkdown();
     const splits = input.split(h_tags);
     const headers = input.match(h_tags);
 
     if (!headers || headers?.length === 0) {
-      this.paragraphs = this.formatNoHeaders(input);
-      return this.paragraphs;
+      this.chunks = this.formatNoHeaders(input);
+      return this.chunks;
     }
 
     const EXCLUDE = ["Can't find what you're looking for?"];
@@ -63,13 +62,13 @@ export class IntercomSplitter extends Splitter {
         .filter((item) => !EXCLUDE.includes(item) && item),
     ];
 
-    this.paragraphs = this.formatWithHeaders(splits, headers_stripped);
-    return this.paragraphs;
+    this.chunks = this.formatWithHeaders(splits, headers_stripped);
+    return this.chunks;
   };
 
   /**
    * Converts Intercom HTML to Markdown using Regex.
-   * @returns A list of paragraphs for the document, divided by headings
+   * @returns A list of chunks for the document, divided by headings
    */
 
   private intercomToMarkdown = () => {
@@ -105,11 +104,11 @@ export class IntercomSplitter extends Splitter {
   };
 
   /**
-   * Converts Intercom HTML tables into a paragraph with 1st column as the header and 2nd column as the body.
+   * Converts Intercom HTML tables into a chunk with 1st column as the header and 2nd column as the body.
    * @todo Add support for more than 2 columns
    * @param input The content with HTML tables
    * @param url The URL of the article, used to parse Intercom anchor tags as links
-   * @returns The content with all table rows converted to paragraphs
+   * @returns The content with all table rows converted to chunks
    */
 
   private convertTables = (input, url) => {
@@ -246,12 +245,12 @@ export class IntercomSplitter extends Splitter {
   };
 
   /**
-   * A helper function for converting a document with no headers into a single paragraph
-   * @param document The document that needs to be converted to a paragraph
-   * @returns The paragraph created from the document
+   * A helper function for converting a document with no headers into a single chunk
+   * @param document The document that needs to be converted to a chunk
+   * @returns The chunk created from the document
    */
 
-  private formatNoHeaders = (document): Paragraph[] => {
+  private formatNoHeaders = (document): TelnyxBucketChunk[] => {
     const content = document.replace(strip_html, '').replaceAll('\n', '');
     const embedding = `${this.title}\n${this.title || 'Introduction'}\n${content}`;
 
@@ -265,18 +264,18 @@ export class IntercomSplitter extends Splitter {
   };
 
   /**
-   * A helper function for converting a document with at least one header into a list of paragraphs
-   * @param splits An array of each paragraphs content created by splitting the document by headers
+   * A helper function for converting a document with at least one header into a list of chunks
+   * @param splits An array of each chunks content created by splitting the document by headers
    * @param headers_striped An array of all headers in the document
-   * @returns A list of paragraphs created from the document
+   * @returns A list of chunks created from the document
    */
 
-  private formatWithHeaders = (splits, headers_striped): Paragraph[] => {
-    const paragraphs = [];
+  private formatWithHeaders = (splits, headers_striped): TelnyxBucketChunk[] => {
+    const chunks = [];
 
     for (const i in splits) {
       const title = headers_striped[i];
-      const last = paragraphs[parseInt(i) - 1];
+      const last = chunks[parseInt(i) - 1];
 
       if (title) {
         const headingContent = last?.body === '' ? `${last.title}\n${title}` : title;
@@ -285,7 +284,7 @@ export class IntercomSplitter extends Splitter {
         const content = splits[i].replace(strip_html, '').replaceAll('\n', '');
         const embedding = `${this.title}\n${heading}\n${content}`;
 
-        paragraphs.push({
+        chunks.push({
           tokens: encode(embedding)?.length,
           heading,
           content: convert(splits[i], { wordwrap: null }).replaceAll('\n\n\n', '\n').replaceAll(' _videoEnd', ' '),
@@ -293,6 +292,6 @@ export class IntercomSplitter extends Splitter {
       }
     }
 
-    return paragraphs.filter((item) => item.content);
+    return chunks.filter((item) => item.content);
   };
 }

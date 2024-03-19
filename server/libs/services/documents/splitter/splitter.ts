@@ -1,7 +1,7 @@
-import { TelnyxBucketChunk } from '../vectorstore/telnyx';
+import { TelnyxBucketChunk } from '../types';
 
 export abstract class Splitter {
-  paragraphs: TelnyxBucketChunk[];
+  chunks: TelnyxBucketChunk[];
 
   split() {
     throw new Error("Method 'split' must be implemented.");
