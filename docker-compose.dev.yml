@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     ports:
-      - '5433:5432'
+      - '${POSTGRES_DEV_PORT}:${POSTGRES_PORT}'
     volumes:
       - postgres_data:/var/lib/postgresql/data/
       - ./schema.sql:/docker-entrypoint-initdb.d/dump.sql:ro
@@ -24,8 +24,6 @@ services:
     container_name: api
     image: ai_chatbot_api
     restart: always
-    environment:
-      POSTGRES_HOST: postgres
     env_file:
       - .env
     ports:

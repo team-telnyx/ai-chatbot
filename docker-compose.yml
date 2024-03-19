@@ -23,8 +23,6 @@ services:
       context: ./
     image: ai_chatbot_api
     restart: always
-    environment:
-      POSTGRES_HOST: postgres
     env_file:
       - .env
     expose:
