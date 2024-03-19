@@ -2,7 +2,6 @@ import PDFParser from 'pdf2json';
 
 import { AxiosInstance } from 'axios';
 import { Context } from './context.js';
-import { encode } from 'gpt-3-encoder';
 import { MarkdownSplitter } from '../splitter/markdown.js';
 import { IntercomSplitter } from '../splitter/intercom.js';
 import { us_central_1 } from '../../../../clients/telnyx.js';
@@ -10,19 +9,17 @@ import { DownstreamError } from './errors.js';
 import { UnstructuredTextSplitter } from '../splitter/unstructured.js';
 import { JSONSplitter } from '../splitter/json.js';
 import { PDFSplitter } from '../splitter/pdf.js';
-import { Indexes, Match, RawMatch, TelnyxBucketChunk, TelnyxContextResult, TelnyxLoaderType } from '../types.js';
 
-type DocumentSplitter = {
-  identifier: string;
-  url: string;
-  title: string;
-  display_title?: string;
-  description: string;
-  body: string;
-  chunks: TelnyxBucketChunk[];
-  override?: string;
-  total_tokens: number;
-};
+import {
+  Indexes,
+  TelnyxDocument,
+  RawMatch,
+  TelnyxContextResult,
+  TelnyxLoaderType,
+  TelnyxChunkedDocument,
+  DocumentType,
+  TelnyxBucketChunk,
+} from '../types.js';
 
 export class TelnyxContext extends Context {
   client: AxiosInstance;
@@ -40,7 +37,7 @@ export class TelnyxContext extends Context {
    * @throws DownstreamError
    */
 
-  public async prompt(matches: Match[], max_tokens = this.MAX_DOCUMENT_TOKENS): Promise<TelnyxContextResult> {
+  public async prompt(matches: TelnyxDocument[], max_tokens = this.MAX_DOCUMENT_TOKENS): Promise<TelnyxContextResult> {
     if (matches.length === 0) return { context: '', used: [] };
 
     try {
@@ -65,10 +62,10 @@ export class TelnyxContext extends Context {
   }
 
   /**
-   * Converts a string input into an array of matches using vectorstore similiarity search
-   * @param query The input to convert
-   * @param indexes The indexes to search, all if not specified
-   * @returns An array of matches
+   * Converts a string input into an array of document matches using vectorstore similiarity search
+   * @param query The input search for the vector query
+   * @param indexes The indexes to search
+   * @returns An array of document matches
    */
 
   public async matches(
@@ -76,7 +73,7 @@ export class TelnyxContext extends Context {
     indexes: Indexes[] = [],
     max_results?: number,
     min_certainty: number = this.MIN_CERTAINTY
-  ): Promise<Match[]> {
+  ): Promise<TelnyxDocument[]> {
     try {
       const vector_start = performance.now();
       const raw_matches = await this.vectorstore.query(query, indexes, max_results);
@@ -89,7 +86,14 @@ export class TelnyxContext extends Context {
         });
 
       const enrich_start = performance.now();
-      const matches = await this.enrich(raw_matches, min_certainty);
+
+      const valid_raw_matches = raw_matches.filter((match) => match.chunk.certainty > min_certainty);
+      if (valid_raw_matches.length === 0) return [];
+
+      // converts the matches back into Telnyx documents
+      const documents = await this.matchesToDocuments(valid_raw_matches);
+      const matches = documents.sort((a, b) => b.matched.chunk.certainty - a.matched.chunk.certainty);
+
       const enrich_end = performance.now();
 
       if (this.callback) {
@@ -119,61 +123,27 @@ export class TelnyxContext extends Context {
   }
 
   /**
-   * Convert a vectorstore match into the original document
-   * @param raw_matches A list of matches
-   * @returns A list of original documents
+   * Queries the vectorstore for matches without any additional processing
+   * @param query The query to send
+   * @param indexes The indexes or buckets to search
+   * @param max_results The max number of results to return
+   * @returns The matches returned by the vectorstore search
    */
 
-  private async enrich(raw_matches: RawMatch[], min_certainty: number): Promise<Match[]> {
-    const matches = raw_matches.filter((match) => match.chunk.certainty > min_certainty);
-    if (matches.length === 0) return [];
-
-    const documents = await this.matchesToDocuments(matches);
-
-    // sort documents by certainty
-    return documents.sort((a, b) => b.matched.certainty - a.matched.certainty);
-  }
-
-  public async raw_matches(query: string, indexes: Indexes[] = undefined, max_results?: number) {
+  public async raw_matches(query: string, indexes: Indexes[] = undefined, max_results?: number): Promise<RawMatch[]> {
     return this.vectorstore.query(query, indexes, max_results);
   }
 
-  public async describe(matches: Match[]): Promise<TelnyxContextResult> {
-    if (matches.length === 0) return { context: '', used: [] };
+  /**
+   * Helper function to convert matches back into documents
+   * @param matches The matches to convert
+   * @returns The original documents of the matches
+   */
 
-    const descriptions = [];
-    const used = [];
-
-    for (const match of matches) {
-      const { identifier, title, description, url, chunks } = match;
-      const metadata = [`# Document ID: ${identifier}`, `- Type: \`telnyx\``];
-
-      if (title) metadata.push(`- Title: ${title}`);
-      if (description) metadata.push(`- Description: ${description.replaceAll('\n', ' ')}`);
-      if (url) metadata.push(`- URL: ${url}`);
-      if (chunks.length) {
-        metadata.push(
-          `- Paragraph Headings: [${chunks
-            .map((para) => `"${para.heading}"`)
-            .slice(0, 20)
-            .join(', ')}]`
-        );
-      }
-
-      used.push({ title, url, tokens: encode(metadata.join(`\n`)).length });
-      descriptions.push(metadata.join('\n'));
-    }
-
-    return { context: descriptions.join('\n\n'), used };
-  }
-
-  public async matchesToDocuments(matches: RawMatch[]) {
+  public async matchesToDocuments(matches: RawMatch[]): Promise<TelnyxDocument[]> {
     if (matches.length === 0) return [];
 
-    const documentPromises = matches.map((match) =>
-      this.matchToDocument(match).then((documentData) => ({ ...documentData.document, match }))
-    );
-
+    const documentPromises = matches.map((match) => this.matchToDocument(match));
     const results = await Promise.all(documentPromises);
 
     // Filter out nulls from unsuccessful promises
@@ -183,27 +153,16 @@ export class TelnyxContext extends Context {
       throw new Error('No documents were successfully processed.');
     }
 
-    return documents.map((item) => ({
-      identifier: item.match.identifier,
-      type: item.match.type,
-      url: item.url,
-      title: item.title,
-      description: item.description,
-      chunks: item.chunks,
-      total_tokens: item.total_tokens,
-      override: item.override,
-      loader_type: item.match.loader_type,
-      matched: item.match,
-    }));
+    return documents;
   }
 
   /**
-   * Transforms a match into a document
-   * @param match The enriched match returned from the similarity search
+   * Transforms a match into the original document
+   * @param match The raw match returned from the similarity search
    * @returns The full document that was matched
    */
 
-  public async matchToDocument(match: RawMatch): Promise<TelnyxContextResult> {
+  private async matchToDocument(match: RawMatch): Promise<TelnyxDocument> {
     const bucket = match.chunk.bucket;
     const document_id = match.identifier;
 
@@ -220,144 +179,79 @@ export class TelnyxContext extends Context {
       data = request.data;
     }
 
-    const document = await this.formatAndSplit(match, data);
-    const context = this.formatTelnyxDocument(document);
+    const document = await this.getChunkedDocument(match, data);
 
     return {
-      document,
-      context,
-      used: [
-        {
-          title: document.title,
-          url: document.url,
-          tokens: document.total_tokens,
-        },
-      ],
+      identifier: document.identifier,
+      type: DocumentType.telnyx,
+      url: document.url || match.url || null,
+      title: document.title,
+      description: document.description,
+      chunks: document.chunks,
+      total_tokens: document.total_tokens,
+      override: document.override,
+      loader_type: match.loader_type,
+      matched: match,
     };
   }
 
-  private formatAndSplit = async (match: RawMatch, document: any): Promise<DocumentSplitter> => {
-    const document_id = match.identifier;
-    const loader_type = match.loader_type;
+  /**
+   * Describe a list of matches using a markdown string
+   * @param matches The list of matches to describe
+   * @returns A markdown string describing the matches
+   */
 
-    if (loader_type === TelnyxLoaderType.Markdown) {
-      const { url, title, description, body } = this.formatSEO(document);
+  public async describe(matches: TelnyxDocument[]): Promise<TelnyxContextResult> {
+    if (matches.length === 0) return { context: '', used: [] };
 
-      const splitter = new MarkdownSplitter({ file: { body: body } });
-      const chunks = splitter.split();
+    // Potential to update to Telnyx summary endpoint if it gets faster at processing documents
+    // https://developers.telnyx.com/api/inference/inference-embedding/post-summary
 
-      return {
-        identifier: document_id,
-        url,
-        title,
-        description,
-        body: body,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
-
-    if (loader_type === TelnyxLoaderType.Intercom) {
-      const { title, description, url, body } = document;
-
-      const splitter = new IntercomSplitter({ article: document });
-      const chunks = splitter.split();
-
-      return {
-        identifier: url,
-        url,
-        title,
-        description,
-        body,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
-
-    if (loader_type === TelnyxLoaderType.UnstructuredText) {
-      const splitter = new UnstructuredTextSplitter({ file: document });
-      const chunks = splitter.split();
-
-      return {
-        identifier: document_id,
-        url: null,
-        title: null,
-        description: null,
-        body: document,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
-
-    if (loader_type === TelnyxLoaderType.PDF) {
-      const splitter = new PDFSplitter({ file: document });
-      const chunks = splitter.split();
-
-      return {
-        identifier: document_id,
-        url: null,
-        title: null,
-        description: null,
-        body: document,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
-
-    if (loader_type === TelnyxLoaderType.JSON) {
-      const splitter = new JSONSplitter({ file: document });
-      const chunks = await splitter.split();
-
-      return {
-        identifier: document_id,
-        url: null,
-        title: null,
-        description: null,
-        body: document,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
-
-    if (loader_type === TelnyxLoaderType.CSV) {
-      const splitter = new JSONSplitter({ file: document });
-      const chunks = await splitter.split(true);
-
-      return {
-        identifier: document_id,
-        url: null,
-        title: null,
-        description: null,
-        body: document,
-        chunks: chunks,
-        total_tokens: chunks.reduce((total, chunk) => total + chunk.tokens, 0),
-      };
-    }
+    const descriptions = matches.map((match) => this.describeMatch(match));
 
     return {
-      identifier: document_id,
-      url: null,
-      title: null,
-      description: null,
-      body: document,
-      chunks: [],
-      total_tokens: 0,
+      context: descriptions.join('\n\n'),
+      used: matches.map((match) => ({
+        title: match.title,
+        url: match.url,
+        tokens: match.total_tokens,
+      })),
     };
-  };
-
-  private formatTelnyxDocument(data): string {
-    const { identifier, url, title, description, chunks } = data;
-
-    let output = `# Document ID: ${identifier}\n- Title: ${title}\n- Description: ${description}\n- URL: ${url}\n\n`;
-
-    for (const chunk of chunks) {
-      output += `### ${chunk.heading}\n${chunk.content}\n\n`;
-    }
-
-    return output;
   }
 
-  private async pdfToDocument(match: RawMatch): Promise<TelnyxContextResult> {
+  /**
+   * Describes the content of a matched document
+   * @param match The match to describe
+   * @returns The description of the match in markdown format
+   */
+
+  private describeMatch(match: TelnyxDocument): string {
+    const { identifier, title, description, url, chunks } = match;
+
+    const metadata = [`# Document ID: ${identifier}`, `- Type: \`telnyx\``];
+
+    if (title) metadata.push(`- Title: ${title}`);
+    if (description) metadata.push(`- Description: ${description.replaceAll('\n', ' ')}`);
+    if (url) metadata.push(`- URL: ${url}`);
+    if (chunks.length) {
+      metadata.push(
+        `- Paragraph Headings: [${chunks
+          .map((para) => `"${para.heading}"`)
+          .slice(0, 20)
+          .join(', ')}]`
+      );
+    }
+
+    return metadata.join('\n');
+  }
+
+  /**
+   * The PDF files needs to be run through a PDF parser to extract the text content
+   * @param match The matches from the PDF file to extract the text from
+   * @returns The text of the matched PDF document
+   */
+
+  private async pdfToDocument(match: RawMatch): Promise<string> {
     const bucket = match.chunk.bucket;
     const document_id = match.identifier;
     const url = `/${bucket}/${encodeURIComponent(document_id)}`;
@@ -379,7 +273,76 @@ export class TelnyxContext extends Context {
       pdfParser.parseBuffer(dataBuffer);
     });
 
-    return data;
+    return data as string;
+  }
+
+  /**
+   * Takes the text content of a Telnyx document and returns it as a chunked document
+   * @param match The match to convert to a document and chunk
+   * @param document The full document context in string format
+   * @returns A document with chunks representing the document content
+   */
+
+  private async getChunkedDocument(match: RawMatch, document: any): Promise<TelnyxChunkedDocument> {
+    const { identifier: document_id, loader_type } = match;
+
+    let splitter = undefined;
+    let splitParams = undefined;
+    let additionalProps = {};
+
+    switch (loader_type) {
+      case TelnyxLoaderType.Markdown:
+        const { url, title, description, body } = this.formatSEO(document);
+        splitter = new MarkdownSplitter({ file: { body } });
+        additionalProps = { url, title, description, body };
+        break;
+      case TelnyxLoaderType.Intercom:
+        splitter = new IntercomSplitter({ article: document });
+        additionalProps = {
+          title: document.title,
+          description: document.description,
+          url: document.url,
+          body: document.body,
+        };
+        break;
+      case TelnyxLoaderType.UnstructuredText:
+        splitter = new UnstructuredTextSplitter({ file: document });
+        break;
+      case TelnyxLoaderType.PDF:
+        splitter = new PDFSplitter({ file: document });
+        break;
+      case TelnyxLoaderType.JSON:
+        splitter = new JSONSplitter({ file: document });
+        break;
+      case TelnyxLoaderType.CSV:
+        splitter = new JSONSplitter({ file: document });
+        splitParams = true;
+        break;
+      default:
+        return {
+          identifier: document_id,
+          url: null,
+          title: null,
+          description: null,
+          body: document,
+          chunks: [],
+          total_tokens: 0,
+        };
+    }
+
+    const chunks = await splitter.split(splitParams);
+    const total_tokens = chunks.reduce((total: number, chunk: TelnyxBucketChunk) => total + chunk.tokens, 0);
+
+    return {
+      identifier: document_id,
+      url: null,
+      title: null,
+      description: null,
+      body: document,
+      chunks: chunks,
+      total_tokens: total_tokens,
+      ...additionalProps,
+    };
   }
 
   /**
