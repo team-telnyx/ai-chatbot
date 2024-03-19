@@ -1,5 +1,5 @@
 {
-  "name": "noc-chatbot",
+  "name": "ai-chatbot",
   "version": "0.0.1",
   "description": "A service for the NOC AI Chat Bot.",
   "main": "server/server.ts",
