@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam, ChatCompletionToolChoiceOption } from 'openai/resources';
-import { Match, UsedDocuments } from '../documents/types';
+import { TelnyxDocument, UsedDocuments } from '../documents/types';
 import { ErrorType } from '../types';
 
 export type OpenAIRequestConfiguration = {
@@ -142,7 +142,7 @@ export type OpenAIExecuteTool = {
 
 export type OpenAIExecuteFunctionMetadata = {
   used_documents?: UsedDocuments[];
-  matched_documents?: Match[];
+  matched_documents?: TelnyxDocument[];
   show_help_action?: boolean;
   show_feedback?: boolean;
   result?: string;

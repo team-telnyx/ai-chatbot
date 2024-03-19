@@ -1,3 +1,28 @@
+export type TelnyxDocument = {
+  identifier: string;
+  type: DocumentType;
+  url: string;
+  title: string;
+  description: string;
+  chunks: TelnyxBucketChunk[];
+  total_tokens: number;
+  override?: string;
+  loader_type: TelnyxLoaderType;
+  matched: RawMatch;
+};
+
+export type TelnyxChunkedDocument = {
+  identifier: string;
+  url: string;
+  title: string;
+  display_title?: string;
+  description: string;
+  body: string;
+  chunks: TelnyxBucketChunk[];
+  override?: string;
+  total_tokens: number;
+};
+
 export enum DocumentType {
   telnyx = 'Telnyx_docs',
 }
@@ -65,19 +90,6 @@ export type RawMatch = {
   type: string;
 };
 
-export type Match = {
-  identifier: string;
-  type: DocumentType;
-  url: string;
-  title: string;
-  description: string;
-  total_tokens: number;
-  override?: string;
-  chunks: TelnyxBucketChunk[];
-  loader_type: TelnyxLoaderType;
-  matched: RawMatch;
-};
-
 type TelnyxSimilarityResult = {
   heading: string | null;
   content: string;
@@ -93,14 +105,12 @@ export type UsedDocuments = {
 };
 
 export type TelnyxContextResult = {
-  document?: any;
-  context?: string;
-  error?: Error | null;
-  used?: UsedDocuments[];
+  context: string;
+  used: UsedDocuments[];
 };
 
 export type MatchResponse = {
-  matches: Match[];
+  matches: TelnyxDocument[];
   error: Error | null;
 };
 
