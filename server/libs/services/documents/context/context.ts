@@ -1,44 +1,47 @@
 import { CallbackEvent } from '../../types.js';
 import { Vectorstore } from '../vectorstore/vectorstore.js';
+import { compareTwoStrings } from 'string-similarity';
 import {
   FormattedPrompt,
   Indexes,
-  Match,
+  TelnyxDocument,
   RawMatch,
   TelnyxBucketChunk,
   TelnyxContextResult,
   TelnyxLoaderType,
 } from '../types.js';
 
-import stringSimilarity from 'string-similarity';
-
-// represents how close the token size can be to the max token size
-const SAFE_TOKENS = 100;
-
 export abstract class Context {
-  vectorstore: Vectorstore;
-  callback: (event: CallbackEvent) => void;
   MAX_DOCUMENT_TOKENS: number;
   MIN_CERTAINTY: number;
   MINIMUM_CONTENT_LENGTH: number;
+  SAFE_TOKENS: number;
+  vectorstore: Vectorstore;
+  callback: (event: CallbackEvent) => void;
 
   constructor({ vectorstore }) {
     this.vectorstore = vectorstore;
 
     // the default total token size that all documents must fit within
     this.MAX_DOCUMENT_TOKENS = 2000;
-
     // the minimum certainty required for a match to be considered
     this.MIN_CERTAINTY = 0.9;
-
+    // the minumum length of content that is considered valid for splitting
     this.MINIMUM_CONTENT_LENGTH = 10;
+    // represents how close the token size can be to the max token size
+    this.SAFE_TOKENS = 100;
   }
 
-  public abstract prompt(matches: Match[], max_tokens?: number): Promise<TelnyxContextResult>;
-  public abstract describe(matches: Match[]): Promise<TelnyxContextResult>;
-  public abstract matches(query: string, indexes: Indexes[], max_results?: number, min_certainty?: number);
-  public abstract matchToDocument(match: RawMatch);
-  public abstract matchesToDocuments(matches: RawMatch[]);
+  public abstract prompt(matches: TelnyxDocument[], max_tokens?: number): Promise<TelnyxContextResult>;
+  public abstract describe(matches: TelnyxDocument[]): Promise<TelnyxContextResult>;
+  public abstract raw_matches(query: string, indexes: Indexes[], max_results?: number): Promise<RawMatch[]>;
+  public abstract matchesToDocuments(matches: RawMatch[]): Promise<TelnyxDocument[]>;
+  public abstract matches(
+    query: string,
+    indexes: Indexes[],
+    max_results?: number,
+    min_certainty?: number
+  ): Promise<TelnyxDocument[]>;
 
   /**
    * Convert a list of chunks to a markdown string
@@ -46,7 +49,7 @@ export abstract class Context {
    * @returns The markdown string
    */
 
-  public format(match: Match): string {
+  public format(match: TelnyxDocument): string {
     if (match?.override) {
       return match?.override;
     }
@@ -81,13 +84,13 @@ export abstract class Context {
    * @returns The markdown equivalent of all matches that fit within the prompt size
    */
 
-  public trimMatches(matches: Match[], max_tokens: number): FormattedPrompt {
+  public trimMatches(matches: TelnyxDocument[], max_tokens: number): FormattedPrompt {
     const formattedMatches: { title: string; url: string; tokens: number | string }[] = [];
 
     let totalTokens = 0;
     let context = '';
 
-    const MAX_SAFE_TOKENS = max_tokens - SAFE_TOKENS;
+    const MAX_SAFE_TOKENS = max_tokens - this.SAFE_TOKENS;
 
     // Ensure matches are sorted by certainty in descending order
     matches.sort((a, b) => b.matched.chunk.certainty - a.matched.chunk.certainty);
@@ -136,11 +139,9 @@ export abstract class Context {
    * @param originalContent The text content that was matched
    * @param isHeader A boolean representing whether we are checking the header or the content of the match
    * @returns The index of the chunk that was matched
-   *
-   * @TODO Use a different method for finding the start chunk of CSV or JSON content
    */
 
-  private findStartingChunk(match: Match, originalContent: string, isHeader = false): number | null {
+  private findStartingChunk(match: TelnyxDocument, originalContent: string, isHeader = false): number | null {
     if (!originalContent || typeof originalContent !== 'string') return null;
 
     if (originalContent.trim().length < this.MINIMUM_CONTENT_LENGTH) {
@@ -155,7 +156,7 @@ export abstract class Context {
 
     match.chunks.forEach((chunk, index) => {
       const textToCompare = isHeader ? chunk.heading : chunk.content;
-      const similarityScore = stringSimilarity.compareTwoStrings(originalContent, textToCompare);
+      const similarityScore = compareTwoStrings(originalContent, textToCompare);
 
       if (similarityScore > highestScore) {
         highestScore = similarityScore;
