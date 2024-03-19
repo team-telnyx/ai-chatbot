@@ -1,6 +1,6 @@
 import { Application } from 'express';
 
-export type Error = {
+export type ErrorType = {
   code: string;
   title: string;
   detail: string;
@@ -63,5 +63,5 @@ export type Classification = {
 export type CallbackEvent = {
   type: 'token' | 'error' | 'complete' | 'documents' | 'matches' | 'classifier' | 'timer' | 'function';
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: string | null | Error | Classification | Document[] | Timer | any;
+  value: string | null | ErrorType | Classification | Document[] | Timer | any;
 };

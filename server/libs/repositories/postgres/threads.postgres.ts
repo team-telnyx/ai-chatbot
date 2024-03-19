@@ -1,10 +1,10 @@
 import Pool from 'pg-pool';
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseMessage, OpenAIRequest } from '../../../types/classes/openai.js';
-import { Error } from '../../../types/common.js';
 import { Postgres } from './postgres.js';
 import { Pricing } from './pricing.postgres.js';
+import { DatabaseMessage, OpenAIRequest } from '../../services/inference/types.js';
+import { ErrorType } from '../../services/types.js';
 
 export class Threads extends Postgres {
   request: OpenAIRequest | null;
@@ -21,7 +21,7 @@ export class Threads extends Postgres {
    * @param error If an error occured during the execution, it is passed to this function to add the error details to the database.
    */
 
-  public async store(error?: Error | null): Promise<void> {
+  public async store(error?: ErrorType | null): Promise<void> {
     console.log('Storing request', this.request);
 
     try {
@@ -81,7 +81,7 @@ export class Threads extends Postgres {
   }
 
   /**
-   * Database: noc_chatbot
+   * Database: ai_chatbot
    * Table: conversations
    */
 
@@ -95,11 +95,11 @@ export class Threads extends Postgres {
   }
 
   /**
-   * Database: noc_chatbot
+   * Database: ai_chatbot
    * Table: messages
    */
 
-  private async store_messages(client: Pool, executionError: Error | null) {
+  private async store_messages(client: Pool, executionError: ErrorType | null) {
     const { chatbot, type, query, session_id, message_id, user_id, metadata } = this.request;
     const { show_help_action, show_feedback, processing_duration } = metadata;
 
@@ -134,7 +134,7 @@ export class Threads extends Postgres {
   }
 
   /**
-   * Database: noc_chatbot
+   * Database: ai_chatbot
    * Table: tool_completions
    */
 
@@ -161,7 +161,7 @@ export class Threads extends Postgres {
   }
 
   /**
-   * Database: noc_chatbot
+   * Database: ai_chatbot
    * Table: chat_completions
    */
 
@@ -188,7 +188,7 @@ export class Threads extends Postgres {
   }
 
   /**
-   * Database: noc_chatbot
+   * Database: ai_chatbot
    * Table: documents
    */
 

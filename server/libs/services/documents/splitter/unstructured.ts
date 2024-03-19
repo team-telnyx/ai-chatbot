@@ -1,6 +1,6 @@
+import { TelnyxBucketChunk } from '../types.js';
 import { Splitter } from './splitter.js';
 import { encode } from 'gpt-3-encoder';
-import { TelnyxBucketChunk } from '../vectorstore/telnyx.js';
 
 export class UnstructuredTextSplitter extends Splitter {
   file: string;
@@ -9,13 +9,13 @@ export class UnstructuredTextSplitter extends Splitter {
     super();
 
     this.file = file;
-    this.paragraphs = this.split();
+    this.chunks = this.split();
   }
 
   /**
-   * Splits an unstructured text document into paragraphs of size chunk_size
-   * @param chunkSize The size of each paragraph in characters
-   * @returns A list of paragraphs of size chunk_size
+   * Splits an unstructured text document into chunks of size chunk_size
+   * @param chunkSize The size of each chunk in characters
+   * @returns A list of chunks of size chunk_size
    */
 
   split(chunkSize = 1000): TelnyxBucketChunk[] {

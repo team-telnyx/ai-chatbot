@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Splitter } from './splitter.js';
-import { MarkdownDocument, Section } from '../../../../types/classes/markdown.js';
-import { Paragraph } from '../../../../types/classes/loader.js';
 
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import { toMarkdown } from 'mdast-util-to-markdown';
@@ -12,6 +10,7 @@ import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { u } from 'unist-builder';
 import { filter } from 'unist-util-filter';
 import { encode } from 'gpt-3-encoder';
+import { MarkdownDocument, Section, TelnyxBucketChunk } from '../types.js';
 
 export class MarkdownSplitter extends Splitter {
   file: MarkdownDocument;
@@ -20,19 +19,19 @@ export class MarkdownSplitter extends Splitter {
     super();
 
     this.file = file;
-    this.paragraphs = this.split();
+    this.chunks = this.split();
   }
 
   /**
-   * Splits a markdown document into paragraphs.
-   * @returns A list of paragraphs created from the document
+   * Splits a markdown document into chunks.
+   * @returns A list of chunks created from the document
    */
 
-  split = (): Paragraph[] => {
+  split = (): TelnyxBucketChunk[] => {
     const sections = this.getSections();
 
-    // calculate token size for each paragraph
-    const paragraphs = sections.map((section) => {
+    // calculate token size for each chunk
+    const chunks = sections.map((section) => {
       const embedding = `${section.heading}\n${section.content}`;
 
       return {
@@ -42,7 +41,7 @@ export class MarkdownSplitter extends Splitter {
       };
     });
 
-    return paragraphs;
+    return chunks;
   };
 
   /**
@@ -89,7 +88,7 @@ export class MarkdownSplitter extends Splitter {
         // this modifier removes the header from the content
         const modifier = { ...tree, children: tree.children.filter((item) => item.type !== 'heading') };
 
-        // this formats the markdown tree into a paragraph
+        // this formats the markdown tree into a chunk
         const content = toMarkdown(modifier, { extensions: [gfmToMarkdown()] });
 
         return {

@@ -1,10 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Indexes, RawMatch } from '../../../../types/classes/context';
-import { DocumentType } from '../../../../types/classes/loader.js';
 import { Vectorstore } from './vectorstore.js';
 import { telnyx } from '../../../../clients/telnyx.js';
-import { TelnyxSimilaritySearchResponse } from '../../../../types/classes/vectorstore';
 import { encode } from 'gpt-3-encoder';
+import {
+  DocumentType,
+  Indexes,
+  RawMatch,
+  TelnyxLoaderMetadata,
+  TelnyxLoaderType,
+  TelnyxSimilaritySearchResponse,
+} from '../types.js';
 
 export class Telnyx extends Vectorstore {
   INTERCOM_BASE_URL: string;
@@ -171,28 +176,3 @@ export class Telnyx extends Vectorstore {
     return true;
   };
 }
-
-export enum TelnyxLoaderType {
-  UnstructuredText = 'text',
-  Markdown = 'markdown',
-  Intercom = 'intercom',
-  PDF = 'pdf',
-  JSON = 'json',
-  CSV = 'csv',
-}
-
-type TelnyxLoaderIntercomMetadata = {
-  article_id: string;
-  title: string;
-  url: string;
-  updated_at: string;
-  heading: string;
-};
-
-type TelnyxLoaderMetadata = TelnyxLoaderIntercomMetadata | null;
-
-export type TelnyxBucketChunk = {
-  heading: string | null;
-  content: string;
-  tokens: number;
-};

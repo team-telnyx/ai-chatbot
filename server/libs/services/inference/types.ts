@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { ChatCompletionMessageParam } from 'openai/resources';
-import { Error } from '../common';
+import { ChatCompletionMessageParam, ChatCompletionToolChoiceOption } from 'openai/resources';
+import { Match, UsedDocuments } from '../documents/types';
+import { ErrorType } from '../types';
 
 export type OpenAIRequestConfiguration = {
   chatbot: string;
@@ -39,7 +39,7 @@ export type OpenAIUsage = {
   total_tokens: number;
 };
 
-export type OpenAIResponse = OpenAIHttpResponse | Error | OpenAIRequest | void;
+export type OpenAIResponse = OpenAIHttpResponse | ErrorType | OpenAIRequest | void;
 
 export type OpenAIHttpResponse = {
   id: string;
@@ -79,7 +79,7 @@ export type OpenAIMetadata = {
   processing_duration?: number;
   show_help_action?: boolean;
   show_feedback?: boolean;
-  error?: Error | null;
+  error?: ErrorType | null;
   result: string;
 };
 
@@ -125,4 +125,31 @@ export type OpenAIFunctionStream = {
   created: number;
   model: string;
   choices: OpenAIChoices;
+};
+
+export type ChatbotQuestion = {
+  user_id: string;
+  session_id?: string | null;
+  message_id: string;
+  question: string;
+};
+
+export type OpenAIExecuteTool = {
+  system: string;
+  tool_output: string;
+  metadata: OpenAIExecuteFunctionMetadata;
+};
+
+export type OpenAIExecuteFunctionMetadata = {
+  used_documents?: UsedDocuments[];
+  matched_documents?: Match[];
+  show_help_action?: boolean;
+  show_feedback?: boolean;
+  result?: string;
+  tools?: string[];
+  tool_choice?: ChatCompletionToolChoiceOption;
+  model?: OpenAIModel | null;
+  output_format?: string;
+  retry?: boolean;
+  decision?: boolean;
 };

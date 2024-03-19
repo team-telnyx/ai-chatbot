@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Splitter } from './splitter.js';
 import { encode } from 'gpt-3-encoder';
-import { TelnyxBucketChunk } from '../vectorstore/telnyx.js';
 
 import csvToJsonV2 from 'csvtojson/v2/index.js';
+import { TelnyxBucketChunk } from '../types.js';
 
 interface KeyValue {
   key: string;
@@ -15,7 +15,6 @@ export class JSONSplitter extends Splitter {
 
   constructor({ file }) {
     super();
-
     this.file = file;
   }
 

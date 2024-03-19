@@ -2,8 +2,8 @@ import hcaptcha from 'express-hcaptcha';
 import jwt from 'jsonwebtoken';
 
 import { hCaptchaError, webTokenInvalid, webTokenMissing } from '../errors';
-import { CallbackEvent } from '../../../types/common.js';
 import { Response } from 'express';
+import { CallbackEvent } from '../../services/types';
 
 const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET_KEY;
 
