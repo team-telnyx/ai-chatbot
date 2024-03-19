@@ -1,6 +1,6 @@
+import { TelnyxBucketChunk } from '../types.js';
 import { Splitter } from './splitter.js';
 import { encode } from 'gpt-3-encoder';
-import { TelnyxBucketChunk } from '../vectorstore/telnyx.js';
 
 export class PDFSplitter extends Splitter {
   file: string;
@@ -9,7 +9,7 @@ export class PDFSplitter extends Splitter {
     super();
 
     this.file = file;
-    this.paragraphs = this.split();
+    this.chunks = this.split();
   }
 
   /**

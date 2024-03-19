@@ -1,5 +1,5 @@
 tag := red
-service := noc-chatbot
+service := ai-chatbot
 port := 3000
 
 main_image := registry.internal.telnyx.com/jenkins/$(service):$(tag)
