@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev:backend": "tsc-watch --project ./server --outDir ./app --onSuccess \"node ./app/server.js\"",
+    "tsc:watch": "tsc-watch --project ./server --outDir ./app",
     "dev:frontend": "webpack serve --progress --config webpack/webpack.config.cjs --env env=dev",
     "dev:build:frontend": "webpack --config webpack/webpack.config.cjs --env env=dev",
     "build:frontend": "webpack --config webpack/webpack.config.cjs --env env=prod",
@@ -15,8 +16,9 @@
     "lint": "eslint --fix \"./src/**/*.{js,jsx,ts,tsx,json}\"",
     "format": "prettier --write \"./src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "embeddings": "tsx server/handlers/embeddings/devdocs.ts",
-    "test:unit:watch": "DEBUG=jest yarn node --experimental-vm-modules $(yarn bin jest) --watch --silent=false --config jest.config.cjs ./app",
-    "test:unit": "yarn node --experimental-vm-modules $(yarn bin jest) --config jest.config.cjs ./app"
+    "test:unit:watch": "DEBUG=jest yarn node --experimental-vm-modules $(yarn bin jest) --watch --detectOpenHandles --silent=false --config jest.config.cjs ./app/__tests__/unit",
+    "test:unit": "yarn node --experimental-vm-modules $(yarn bin jest) --config jest.config.cjs ./app/__tests__/unit",
+    "test:api": "yarn node --experimental-vm-modules $(yarn bin jest) --config jest.config.cjs ./app/__tests__/api"
   },
   "engines": {
     "node": ">=19"
