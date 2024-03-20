@@ -17,7 +17,10 @@ function fileExists(filePath: string): boolean {
 function parseEnvFile(filePath: string): string[] {
   try {
     const fileContents = fs.readFileSync(filePath, 'utf-8');
-    return fileContents.split('\n').filter(line => line.trim() !== '' && !line.startsWith('#')).map(line => line.split('=')[0].trim());
+    return fileContents
+      .split('\n')
+      .filter((line) => line.trim() !== '' && !line.startsWith('#'))
+      .map((line) => line.split('=')[0].trim());
   } catch (error) {
     console.error(`ERROR: Unable to read or parse the .env file at ${filePath}`, error);
     return [];
@@ -31,7 +34,7 @@ function checkEnvVariables(envFilePath: string): void {
   }
 
   const envFileVars = parseEnvFile(envFilePath);
-  const missingEnvVars = envFileVars.filter(envVar => !process.env[envVar]);
+  const missingEnvVars = envFileVars.filter((envVar) => !process.env[envVar]);
 
   if (missingEnvVars.length > 0) {
     console.error(`ERROR: Missing required environment variables: ${missingEnvVars.join(', ')}`);
