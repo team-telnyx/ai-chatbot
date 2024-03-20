@@ -21,7 +21,7 @@
     "test:api": "yarn node --experimental-vm-modules $(yarn bin jest) --config jest.config.cjs ./app/__tests__/api"
   },
   "engines": {
-    "node": ">=19"
+    "node": ">=18"
   },
   "repository": "https://github.com/team-telnyx/noc-integrations",
   "author": "ciaranp@telnyx.com",
