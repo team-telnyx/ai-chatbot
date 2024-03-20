@@ -15,7 +15,8 @@
     "lint": "eslint --fix \"./src/**/*.{js,jsx,ts,tsx,json}\"",
     "format": "prettier --write \"./src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
     "embeddings": "tsx server/handlers/embeddings/devdocs.ts",
-    "test": "jest"
+    "test:unit:watch": "DEBUG=jest yarn node --experimental-vm-modules $(yarn bin jest) --watch --silent=false --config jest.config.cjs ./app",
+    "test:unit": "yarn node --experimental-vm-modules $(yarn bin jest) --config jest.config.cjs ./app"
   },
   "engines": {
     "node": ">=19"
@@ -146,6 +147,7 @@
     "sass-extract-loader": "^1.1.0",
     "sass-loader": "^13.2.0",
     "style-loader": "^3.3.1",
+    "supertest": "^6.3.4",
     "ts-jest": "^29.1.2",
     "tsc-watch": "^6.0.0",
     "tsx": "^3.12.6",
