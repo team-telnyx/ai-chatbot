@@ -1,7 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { PDFSplitter } from '../../../libs/services/documents/splitter/pdf.js';
 
-import { PromptType, RawMatch } from '../../../types/classes/context.js';
 import PDFParser from 'pdf2json';
 import axios from 'axios';
 
@@ -38,7 +37,7 @@ function getDocumentFromUrl(url: string) {
     if (!!document) {
       return document.data;
     }
-    let data = await pdfToDocument(url);
+    const data = await pdfToDocument(url);
     document = {
       url,
       data,
