@@ -1,9 +1,8 @@
-import { ChatbotQuestion } from '../../../../types/classes/chatbot.js';
 import { Chatbot, Configuration } from './chatbot.js';
 import { Threads } from '../../../repositories/postgres/threads.postgres.js';
 
-import { OpenAIRequest, OpenAIRequestConfiguration } from '../../../../types/classes/openai.js';
 import { ChatCompletionMessageParam } from 'openai/resources/index.js';
+import { ChatbotQuestion, OpenAIRequest, OpenAIRequestConfiguration } from '../types.js';
 
 export class WeatherChatbot extends Chatbot {
   system: string | null;

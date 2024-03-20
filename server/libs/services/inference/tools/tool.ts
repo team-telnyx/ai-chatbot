@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request } from 'express';
-import { OpenAIExecuteTool } from '../../../../types/classes/function.js';
 import { ChatCompletionToolChoiceOption } from 'openai/resources/index.js';
 import { Telnyx } from '../../documents/vectorstore/telnyx.js';
 import { TelnyxContext } from '../../documents/context/telnyx.js';
 import { Context } from '../../documents/context/context.js';
+import { OpenAIExecuteTool } from '../types.js';
 
 export abstract class Tool {
   req: Request;

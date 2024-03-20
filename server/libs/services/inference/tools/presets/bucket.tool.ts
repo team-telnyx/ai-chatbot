@@ -1,5 +1,5 @@
+import { Indexes } from '../../../documents/types.js';
 import { Tool } from '../tool.js';
-import { Indexes } from '../../../../../types/classes/context.js';
 
 export class ExampleBucketSearchTool extends Tool {
   constructor({ req }) {
