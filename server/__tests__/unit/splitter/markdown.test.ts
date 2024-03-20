@@ -173,7 +173,6 @@ describe('MarkdownSplitter Class Tests', () => {
   test('Split a Markdown to default size chunks', () => {
     const splitter = new MarkdownSplitter({ file: document });
     const paragraphs = splitter.split();
-    console.log(paragraphs);
     paragraphs.forEach((paragraph) => {
       expect(paragraph.content.length).toBeGreaterThan(0);
       expect(paragraph.tokens).toBeGreaterThan(0);
