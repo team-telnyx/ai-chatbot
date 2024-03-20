@@ -4,7 +4,19 @@ import { Application } from './libs/app/application.js';
 
 dotenv.config();
 
-const port = 3000;
+let port;
+try {
+  if (!process.env.PORT) throw new Error('PORT is not defined');
+  port = parseInt(process.env.PORT);
+  if (isNaN(port)) {
+    throw new Error('PORT is not a number');
+  }
+} catch (e) {
+  port = 3000;
+  console.log(e.message);
+  console.log('Using default port 3000');
+}
+
 const app = new Application();
 
 // Start the server
@@ -14,3 +26,7 @@ app.start(port);
 process.on('SIGINT', () => {
   app.dispose();
 });
+
+const { app: expressApp } = app;
+
+export { expressApp };
