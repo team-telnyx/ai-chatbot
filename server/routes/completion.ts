@@ -11,7 +11,6 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   const http = req.query.http === 'true';
-  console.log(req.query.http);
 
   const chatbot = req?.query?.chatbot || 'weather_bot';
   const required = { query: ['user_id', 'session_id', 'question'] };
