@@ -5,14 +5,14 @@ import { OpenAI } from './openai.js';
 import { APIError } from 'openai';
 
 import { Threads } from '../../../../repositories/postgres/threads.postgres.js';
-import { OpenAIModel, OpenAIRequest, OpenAIRequestConfiguration } from '../../../../../types/classes/openai.js';
-import { CallbackEvent } from '../../../../../types/common.js';
 import {
   ChatCompletionChunk,
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
   ChatCompletionToolChoiceOption,
 } from 'openai/resources/index.js';
+import { OpenAIModel, OpenAIRequest, OpenAIRequestConfiguration } from '../../types.js';
+import { CallbackEvent } from '../../../types.js';
 
 type TelnyxChatCompletionCreateParamsStreaming = ChatCompletionCreateParamsStreaming & { openai_api_key?: string };
 export class OpenAIStream extends OpenAI {

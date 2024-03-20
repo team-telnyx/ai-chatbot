@@ -1,16 +1,6 @@
 import { LLM } from '../llm.js';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  OpenAIModel,
-  OpenAIResponse,
-  OpenAIRole,
-  OpenAIRequest,
-  OpenAIRequestConfiguration,
-} from '../../../../../types/classes/openai.js';
-
-import { CallbackEvent } from '../../../../../types/common.js';
-
 import { APIError } from 'openai';
 import { Tool } from '../../tools/tool.js';
 import { ChatCompletionToolChoiceOption } from 'openai/resources/index.js';
@@ -18,6 +8,8 @@ import { Threads } from '../../../../repositories/postgres/threads.postgres.js';
 import { encode } from 'gpt-3-encoder';
 import { encodingForModel, getEncoding } from 'js-tiktoken';
 import { OpenAIError, OpenAIFunctionError } from '../errors.js';
+import { OpenAIModel, OpenAIRequest, OpenAIRequestConfiguration, OpenAIResponse, OpenAIRole } from '../../types.js';
+import { CallbackEvent } from '../../../types.js';
 
 export abstract class OpenAI extends LLM {
   tool: Tool;
@@ -184,7 +176,7 @@ export abstract class OpenAI extends LLM {
             title: match.title,
             url: match.url,
             type: match.type,
-            certainty: match.matched.certainty,
+            certainty: match.matched.chunk.certainty,
             tokens: match.total_tokens,
           })),
         });

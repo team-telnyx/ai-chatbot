@@ -1,6 +1,4 @@
 import { Request, Response } from 'express';
-import { ChatbotQuestion } from '../../../../types/classes/chatbot.js';
-import { CallbackEvent } from '../../../../types/common.js';
 import { OpenAIStream } from '../llm/openai/stream.js';
 import { OpenAIHTTP } from '../llm/openai/http.js';
 import { Tool } from '../tools/tool.js';
@@ -8,15 +6,16 @@ import { Threads } from '../../../repositories/postgres/threads.postgres.js';
 import { MissingBodyParameters, MissingParameters, Unexpected } from './errors.js';
 import { ChatCompletionMessage } from 'openai/resources/index.js';
 import { v4 as uuidv4 } from 'uuid';
-
 import {
+  ChatbotQuestion,
   DatabaseMessage,
   OpenAIMetadata,
   OpenAIModel,
   OpenAIRequest,
   OpenAIRequestConfiguration,
   OpenAIRole,
-} from '../../../../types/classes/openai.js';
+} from '../types.js';
+import { CallbackEvent } from '../../types.js';
 
 export type Configuration = {
   configuration: OpenAIRequestConfiguration;
