@@ -2,6 +2,8 @@ import path from 'path';
 import express, { Express, json, urlencoded, static as expressStatic } from 'express';
 import cors from 'cors';
 import fs from 'fs';
+import Pool from 'pg-pool';
+
 
 import completion from '../../routes/completion.js';
 import datastore from '../../routes/datastore.js';
@@ -18,8 +20,8 @@ config({ override: true });
 
 export class Application {
   public app: Express;
-
   private server?: Server;
+  private dbPool?: Pool;
 
   constructor() {
     this.app = express();
@@ -27,16 +29,23 @@ export class Application {
     this.setupMiddlewares();
     this.setupRoutes();
     this.setupGlobalVariables();
+    this.setupDatabaseConnection();
   }
 
   // start the server
   public start(port: number): void {
     this.checkEnvVariables();
+
     if (!port) throw new Error('PORT is not defined');
     if (isNaN(port)) throw new Error('PORT is not a number');
 
-    this.server = this.app.listen(port, () => {
-      console.log(`Server running on http (port ${port})`);
+    this.ensureDatabaseConnection().then(() => {
+      this.server = this.app.listen(port, () => {
+        console.log(`Server running on http (port ${port})`);
+      });
+    }).catch((err) => {
+      console.error("Failed to establish a database connection:", err);
+      process.exit(1);
     });
   }
 
@@ -85,6 +94,35 @@ export class Application {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  private setupDatabaseConnection(): void {
+    this.dbPool = new Pool({
+      max: 50,
+      port: process.env.POSTGRES_PORT,
+      user: process.env.POSTGRES_USER,
+      database: process.env.POSTGRES_DATABASE,
+      host: process.env.POSTGRES_HOST,
+      password: process.env.POSTGRES_PASSWORD,
+      connectionTimeoutMillis: 0,
+      idleTimeoutMillis: 10,
+    });
+
+    this.dbPool.on('error', (err: any) => {
+      console.error('Unexpected error on idle client', err);
+      process.exit(-1);
+    });
+  }
+
+  private async ensureDatabaseConnection(): Promise<void> {
+    try {
+      // Use a simple query to test the connection
+      await this.dbPool.query('SELECT 1');
+      console.log(`Successfully connected to the database: ${process.env.POSTGRES_DATABASE} at ${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}`);
+    } catch (error) {
+      console.error("Failed to establish a database connection:", error.message); // Log the detailed error message
+      process.exit(1);
     }
   }
 
