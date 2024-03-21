@@ -1,11 +1,17 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, afterAll } from '@jest/globals';
+import { application } from '../../server';
+
 import request from 'supertest';
-import { expressApp } from '../../server';
 
 // http://localhost:3000/completion/?user_id=12345&session_id=098123781&question=How's the weather in Dublin, Ireland ? Tell me in Farenheight&http=true
 
 // generate a 6 digit random number
 const getRandomNumber = () => Math.floor(100000 + Math.random() * 900000);
+
+afterAll((done) => {
+  application.dispose();
+  done();
+});
 
 /**
  * Sample response from completions
@@ -43,7 +49,7 @@ describe('GET /completions', function () {
     const randomSessionId = getRandomNumber();
     const testQuestion = "How's the weather in Dublin, Ireland?";
 
-    const response = await request(expressApp)
+    const response = await request(application.app)
       .get('/completion')
       .query({
         user_id: randomUserId,
@@ -102,7 +108,7 @@ describe('GET /pricing/model', function () {
   it('responds with that specific model pricing', async function () {
     const modelName = 'gpt-4-turbo-preview';
 
-    const response = await request(expressApp)
+    const response = await request(application.app)
       .get('/pricing/model')
       .query({
         model: modelName,
@@ -138,7 +144,7 @@ describe('GET /pricing/model/cost', function () {
     const startDate = '2024-01-01';
     const endDate = '2024-03-15';
 
-    const response = await request(expressApp)
+    const response = await request(application.app)
       .get('/pricing/model/cost')
       .query({
         start_date: startDate,
@@ -171,7 +177,7 @@ describe('GET /pricing/model/cost', function () {
 
 describe('GET /state', function () {
   it('responds with status of the service', async function () {
-    const response = await request(expressApp).get('/state').set('Accept', 'application/json');
+    const response = await request(application.app).get('/state').set('Accept', 'application/json');
 
     expect(response.headers['content-type']).toEqual('application/json; charset=utf-8');
     expect(response.status).toEqual(200);
