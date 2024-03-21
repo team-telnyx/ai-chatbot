@@ -63,6 +63,12 @@ export class ExampleWeatherTool extends Tool {
 
   private checkWeather = async (location: string, unit: 'metric' | 'imperial'): Promise<string> => {
     // Create an account here: https://openweathermap.org/ to get an API key
+    // if key not found throw an error
+    if (!process.env.OPEN_WEATHER_MAP_API_KEY) {
+      throw new Error(
+        'OPEN_WEATHER_MAP Key not found. Please get one from https://openweathermap.org and then paste it in your environment file.'
+      );
+    }
     const apiKey = process.env.OPEN_WEATHER_MAP_API_KEY;
 
     const baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
