@@ -1,6 +1,7 @@
 import path from 'path';
 import express, { Express, json, urlencoded, static as expressStatic } from 'express';
 import cors from 'cors';
+import fs from 'fs';
 
 import completion from '../../routes/completion.js';
 import datastore from '../../routes/datastore.js';
@@ -13,7 +14,7 @@ import { config } from 'dotenv';
 
 const __dirname = path.resolve();
 
-config();
+config({ override: true });
 
 export class Application {
   public app: Express;
@@ -30,6 +31,7 @@ export class Application {
 
   // start the server
   public start(port: number): void {
+    this.checkEnvVariables();
     if (!port) throw new Error('PORT is not defined');
     if (isNaN(port)) throw new Error('PORT is not a number');
 
@@ -44,6 +46,45 @@ export class Application {
 
       // Here you can dispose of any resources that the application uses,
       // for example, database connections, file handles, etc.
+    }
+  }
+
+  private checkEnvVariables(): void {
+    const envFilePath = path.resolve(process.cwd(), '.env');
+
+    if (!this.fileExists(envFilePath)) {
+      console.error(`ERROR: .env file does not exist at ${envFilePath}`);
+      process.exit(1);
+    }
+
+    const requiredEnvVars = [
+      'INTERCOM_API_KEY',
+      'OPENAI_API_KEY',
+      'TELNYX_API_KEY',
+      'POSTGRES_HOST',
+      'POSTGRES_PORT',
+      'POSTGRES_USER',
+      'POSTGRES_DATABASE',
+      'POSTGRES_PASSWORD',
+    ];
+
+    const missingOrEmptyEnvVars = requiredEnvVars.filter((envVar) => {
+      return !process.env[envVar] || process.env[envVar].trim() === '';
+    });
+
+    if (missingOrEmptyEnvVars.length > 0) {
+      console.error(`ERROR: Missing or empty required environment variables: ${missingOrEmptyEnvVars.join(', ')}`);
+      console.error('Please ensure all required environment variables are set and have non-empty values.');
+      process.exit(1);
+    }
+  }
+
+  private fileExists(filePath: string): boolean {
+    try {
+      fs.accessSync(filePath, fs.constants.F_OK);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
