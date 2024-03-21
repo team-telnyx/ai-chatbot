@@ -4,7 +4,7 @@ import { Application } from './libs/app/application.js';
 
 dotenv.config();
 
-const port = 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 const app = new Application();
 
 // Start the server
@@ -14,3 +14,5 @@ app.start(port);
 process.on('SIGINT', () => {
   app.dispose();
 });
+
+export const application = app
