@@ -32,6 +32,8 @@ export class Application {
   // start the server
   public start(port: number): void {
     this.checkEnvVariables();
+    if (!port) throw new Error('PORT is not defined');
+    if (isNaN(port)) throw new Error('PORT is not a number');
 
     this.server = this.app.listen(port, () => {
       console.log(`Server running on http (port ${port})`);
@@ -40,9 +42,7 @@ export class Application {
 
   public dispose(): void {
     if (this.server) {
-      this.server.close(() => {
-        console.log('Server has been stopped.');
-      });
+      this.server.close();
 
       // Here you can dispose of any resources that the application uses,
       // for example, database connections, file handles, etc.
