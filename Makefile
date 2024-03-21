@@ -2,7 +2,7 @@ tag := red
 service := ai-chatbot
 port := 3000
 
-main_image := registry.internal.telnyx.com/jenkins/$(service):$(tag)
+main_image := $(service):$(tag)
 node_version := 19.8.1
 
 docker_build_args = \
@@ -17,10 +17,18 @@ docker_build_args = \
 build:
 	docker build $(docker_build_args) --tag $(main_image) .
 
-.PHONY: 
+.PHONY: start
 start:
-	docker run -d -p $(port):$(port) $(main_image)
+	docker compose up -d
+
+.PHONY: stop
+stop:
+	docker compose down
+
+.PHONY: startdev
+startdev:
+	docker compose -f docker-compose.yml up -d
 
 .PHONY: test
 test:
-	$(info ************  NO TESTING YET ************)
+	yarn run test
