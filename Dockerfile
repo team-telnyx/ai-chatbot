@@ -1,4 +1,4 @@
-FROM node:19.8.1
+FROM node:20.9.0
 
 # set working directory
 WORKDIR /src/app
@@ -12,7 +12,7 @@ RUN yarn
 COPY . ./
 
 # compile backend ts into js
-RUN yarn run build:backend
+RUN yarn run build
 
 # make the entrypoint script executable
 RUN chmod +x entrypoint.sh

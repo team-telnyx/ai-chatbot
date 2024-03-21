@@ -8,5 +8,8 @@
     "resolveJsonModule": true,
     "moduleResolution": "node",
     "sourceMap": true,
-  },
+    "allowJs": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true
+  }
 }

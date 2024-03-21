@@ -23,6 +23,7 @@ module.exports = {
     'plugin:jsx-a11y/recommended',
     'prettier',
     'plugin:prettier/recommended',
+    'plugin:jest/recommended',
   ],
   rules: {
     indent: 0,
