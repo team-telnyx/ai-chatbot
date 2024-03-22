@@ -67,7 +67,7 @@ describe('PDFSplitter Class', () => {
     });
 
     expect(paragraphs.reduce((total, paragraph) => total + paragraph.tokens, 0)).toBe(22287);
-  });
+  }, 30000);
 
   test(`splitOnText method with large chunkSize`, async () => {
     // Download PDF from a url
@@ -86,7 +86,7 @@ describe('PDFSplitter Class', () => {
     });
 
     expect(paragraphs.reduce((total, paragraph) => total + paragraph.tokens, 0)).toBe(22392);
-  });
+  }, 30000);
 
   test(`splitOnText method with small chunkSize`, async () => {
     // Download PDF from a url
@@ -106,5 +106,5 @@ describe('PDFSplitter Class', () => {
     });
 
     expect(paragraphs.reduce((total, paragraph) => total + paragraph.tokens, 0)).toBe(23158);
-  });
+  }, 30000);
 });
