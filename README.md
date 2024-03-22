@@ -59,8 +59,6 @@ Here is an example of how the chatbot integrates these services within its codeb
 
 These integrations provide the foundation for the AI Chatbot's functionality, enabling it to offer a comprehensive, AI-driven chat service that leverages the best of Telnyx's storage and inference capabilities alongside the advanced AI models provided by OpenAI.
 
-
-
 ### Update .env Configuration
 
 1. **Reflect API and Storage Details**: Update your chatbot's `.env` file with the new API keys and storage bucket details to enable seamless integration between the AI Chatbot and Telnyx services.
@@ -116,6 +114,8 @@ POSTGRES_DEV_PORT=25432
 LOCAL=true
 ```
 
+This is just a sample of environment variables we have included. 
+
 ## Environment Setup
 
 To run the project, you need to install Node. This project uses Node version 20. Consider installing [NVM](https://github.com/nvm-sh/nvm) for virtual environment management.
@@ -129,7 +129,8 @@ nvm use 20.4.0
 
 ### With Yarn
 
-1. Install the project dependencies with `yarn`.
+1. Make sure to have followed the postgres database setup instructions above. 
+2, Install the project dependencies with `yarn`.
 2. Start the project backend with `yarn run dev:backend`.
 
 ```
@@ -184,6 +185,13 @@ be4aee0277d5   ai_chatbot_api   "./entrypoint.sh"        15 seconds ago   Up 5 s
 2. If you need direct access to the API and Postgres DB, you need the dev version. Note that the DB will be accessible on the POSTGRES_DEV_PORT from .env (default is 25432).
 3. NGINX_PORT - the port on which the service will be available in prod (default is 80).
 4. PORT - the port on which the API service is available in dev (default is 3000).
+
+### With Make
+
+For convenience, Makefile commands are available to manage the project with ease:
+
+1. To start the application in development mode with live reloading and debug capabilities, use: `make start`.
+2. To start the application in detached mode, ideal for production environments where you want the process to run in the background, execute: `make start -d`.
 
 ## Test your Endpoints Locally
 
@@ -269,7 +277,7 @@ curl --request GET \
   --header 'Content-Type: application/json'
 ```
 
-When using docker, simply remove port 3000 from the URL. 
+When using docker, use whatever you have set as the NGINX port variable. 
 
 ## Run Tests
 
@@ -277,7 +285,7 @@ This section provides guidance on running tests for the AI Chatbot project, incl
 
 ### Prerequisites
 
-Ensure your Node.js version is updated to **v20**. This update is necessary because Node version 19.8.1 is incompatible with `ts-jest`.
+Ensure your Node.js version is updated to at least **v20**.
 
 ### Running Tests
 
@@ -380,7 +388,7 @@ A: Yes, contributions are welcome! Check the [How to Contribute](#how-to-contrib
 
 ## Future Work
 
-Our vision for the AI Chatbot extends beyond its current capabilities. We are actively working on integrating this solution with our in-house call center, powered by the Telnyx Voice API. This will allow our support team to leverage AI-driven assistance for handling calls, answering queries, and providing information to customers in real-time. Our goal is to showcase a seamless integration of AI chatbot functionalities with voice API backends, paving the way for innovative customer support solutions. Furthermore, this integration will enhance the efficiency of customer support leaders by enabling quicker escalations through advanced features like call recording summaries and improved transcriptions, reinforcing our commitment for leading the way with the customer experience.
+Our vision for the AI Chatbot encompasses a future where it seamlessly integrates with additional Telnyx API products, offering expanded capabilities. A particularly promising development is the prospect of incorporating an AI Assistant into call center solutions. Telnyx is laying the groundwork for such advancements by leveraging our Voice and Inference APIs, which now feature public endpoints powered by Telnyx GPU-backed services. These enhancements are further complemented by our newly introduced APIs for OpenAI-compatible transcriptions and Telnyx Storage summarizations, paving the way for innovative customer engagement solutions.
 
 ## License
 
@@ -388,11 +396,10 @@ This project is licensed under the MIT License - see the [LICENSE](https://githu
 
 ## Acknowledgments
 
-I would like to extend thanks to our dedicated team members who have contributed to the AI Chatbot project:
+I would like to extend thanks to our dedicated engineers who have contributed to the AI Chatbot project:
 
 - **Ciaran** for his expertise and hard work on the backend development, ensuring the chatbot's core functionalities are robust and efficient.
 - **Artem** for his skills in Docker configuration, making the setup process smoother and more reliable for all users.
 - **Rudra** for his meticulous testing efforts, identifying bugs and issues to enhance the overall quality and user experience of the chatbot.
 
 Their contributions have been invaluable to the success of this project. We look forward to continued collaboration as we expand the capabilities of the AI Chatbot.
-
