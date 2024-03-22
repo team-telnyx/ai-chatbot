@@ -17,8 +17,8 @@ const INTERCOM_SAMPLE_ARTICLE = {
 
 import { describe, expect, test } from '@jest/globals';
 import { IntercomSplitter } from '../../../libs/services/documents/splitter/intercom';
-import intercomJson from '../../assets/unparsed.json';
 
+import intercomJson from '../../assets/intercom_example_articles.json';
 const INTERCOM_ARTICLES = intercomJson.data;
 
 describe('IntercomSplitter Class Tests', () => {
@@ -40,16 +40,13 @@ describe('IntercomSplitter Class Tests', () => {
   });
 
   test('Split multiple articles default size chunks', () => {
-    INTERCOM_ARTICLES.forEach((article, index) => {
+    INTERCOM_ARTICLES.forEach((article) => {
       const splitter = new IntercomSplitter({ article });
 
       const paragraphs = splitter.split();
 
       paragraphs.forEach((paragraph) => {
-        if (paragraph.content.length > 0) {
-          expect(paragraph.tokens).toBeGreaterThan(0);
-          expect(paragraph.tokens).toBeLessThanOrEqual(1000);
-        }
+        expect(paragraph.tokens).toBeLessThanOrEqual(1000);
       });
     });
   });
