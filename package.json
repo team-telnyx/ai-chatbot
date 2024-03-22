@@ -9,7 +9,7 @@
     "server": "node ./app/server.js",
     "dev:backend": "tsc-watch --project ./server --outDir ./app --onSuccess \"node ./app/server.js\"",
     "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest --config jest.config.cjs ./app/__tests__",
-    "test:debug": "DEBUG=jest cross-env NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs ./app/__tests__"
+    "test:debug": "cross-env DEBUG=jest NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.cjs ./app/__tests__"
   },
   "engines": {
     "node": ">=20.0.0"
